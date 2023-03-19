@@ -1,6 +1,11 @@
 # dashcam-transporter
-Application running on a raspberry pi, to transfer your dashcam video files to your preferred storage
+Application running on a raspberry pi, to transfer and archive your dashcam video files to your preferred storage
 
+
+# How it works
+- The application is searching for the WIfi of your dashcam
+- If found it connects to it in searches for locked videos (those where something happened), downloads them and deletes them from the dashcam
+- The application then searches for your home network, connects and uploads the videos and deletes them from the pi
 
 
 # Currently supported dashcams
@@ -14,10 +19,10 @@ Application running on a raspberry pi, to transfer your dashcam video files to y
 - Setup raspbian lite
 - Download clone dashcam transporter from github 
     - `git clone https://github.com/steve192/dashcam-transporter.git`
-- Navigate to the directory `cd dashcam-transporter`
+- Navigate to the directory `cd dashcam-transporter/backend`
 - Install node modules `npm i`
 - Build `npm run build`
-- Navigate to the build result `cd dist``
+- Navigate to the build result `cd dist`
 - Execute setup script `sudo setup.sh`
 - Edit the settings.ini file `nano settings.ini`
 - Reboot and the script will automatically be started `sudo reboot`
