@@ -4,6 +4,11 @@ env:
 extends: standard-with-typescript
 overrides: []
 parserOptions:
-  ecmaVersion: latest
+  ecmaVersion: 2020
+  project:
+    - backend/tsconfig.json
   sourceType: module
-rules: {}
+rules:
+  "@typescript-eslint/explicit-function-return-type": off
+  "@typescript-eslint/no-extraneous-class": off
+  "@typescript-eslint/ban-ts-comment": off
