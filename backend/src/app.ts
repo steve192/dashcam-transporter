@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import fs from 'fs';
+import http from 'http';
 import { downloadLockedVideosFromDashcam } from "./DashcamDownloader";
 import { GlobalState } from './GlobalState';
-import { smbTransferToHome } from './hometransfert/smb';
+import { HomeTransfer } from './HomeTransfer';
+import { RaspiLED } from './raspiLed';
 import { getDownloadDirectory } from "./settings";
 import { sleep } from "./utils";
 import { enableWifi, isConnectedToDashcamWifi, isConnectedToHomeWifi, tryToConnectToDashcamWifi, tryToConnectToHomeWifi } from "./WIFI";
@@ -11,7 +13,12 @@ import { enableWifi, isConnectedToDashcamWifi, isConnectedToHomeWifi, tryToConne
 
 const appStart = async () => {
 
+
+    preventMultipleRuns();
+
     console.log("App started");
+    
+    RaspiLED.initialize();
 
     if (!fs.existsSync((await getDownloadDirectory()) + "/locked")){
         fs.mkdirSync((await getDownloadDirectory()));
@@ -26,7 +33,7 @@ const appStart = async () => {
         if (await isConnectedToDashcamWifi() && !GlobalState.dashcamTransferDone) {
             await downloadLockedVideosFromDashcam();
         } else if (await isConnectedToHomeWifi() && !GlobalState.homeTransferDone) {
-            await smbTransferToHome();
+            await HomeTransfer.transferToHome();
         } else {
             try {
                 if (!GlobalState.dashcamTransferDone) {
@@ -52,3 +59,18 @@ const appStart = async () => {
 }
 
 appStart();
+
+function preventMultipleRuns() {
+    let server = http.createServer(function (req, res) {
+    });
+    // make sure this server doesn't keep the process running
+    server.unref();
+
+    server.on('error', function (e) {
+        console.log("Application already running - can't run more than one instance");
+        process.exit(1);
+    });
+
+    server.listen(32890, function () {
+    });
+}

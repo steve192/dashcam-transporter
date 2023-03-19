@@ -1,3 +1,5 @@
+import { RaspiLED } from "./raspiLed";
+
 export class GlobalState {
     
     // Prevents from connecting to dashcam and downloading videos
@@ -15,6 +17,7 @@ export class GlobalState {
         return GlobalState._homeTransferDone;
     }
     public static set homeTransferDone(value) {
+        if (value) RaspiLED.operation = "IDLE";
         console.log("Home transfer done:", value);
         GlobalState._homeTransferDone = value;
     }
@@ -24,6 +27,7 @@ export class GlobalState {
     }
     public static set dashcamTransferDone(value) {
         console.log("Dashcam transfer done:", value);
+        if (value) RaspiLED.operation = "IDLE";
         GlobalState._dashcamTransferDone = value;
     }
 }

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import SambaClient from "samba-client";
+import { GlobalState } from '../GlobalState';
 import { getDownloadDirectory, getSMBSettings } from "../settings";
 
 export const smbTransferToHome = async () => {
@@ -36,6 +37,8 @@ export const smbTransferToHome = async () => {
         fs.unlinkSync(lockedFilesDirectory + "/" + file);
     }
 
+
+    GlobalState.homeTransferDone = true;
     console.log("All files uploaded");
 
 }
