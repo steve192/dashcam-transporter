@@ -1,9 +1,11 @@
-import { downloadLockedVideosFromDashcam as VIOFOdownloadLockedVideosFromDashcam } from './dashcams/viofio'
+import { VIOFO } from './dashcams/VIOFO'
 import { GlobalState } from './GlobalState'
-import { RaspiLED } from './raspiLed'
+import { RaspiLED } from './RaspiLed'
 
-export const downloadLockedVideosFromDashcam = async () => {
-  GlobalState.homeTransferDone = false
-  RaspiLED.operation = 'DASHCAMTRANSFER'
-  await VIOFOdownloadLockedVideosFromDashcam()
+export class DashcamDownloader {
+  public static async downloadLockedVideosFromDashcam () {
+    GlobalState.homeTransferDone = false
+    RaspiLED.operation = 'DASHCAMTRANSFER'
+    await VIOFO.downloadLockedVideosFromDashcam()
+  }
 }

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import fs from 'fs'
 import http from 'http'
-import { downloadLockedVideosFromDashcam } from './DashcamDownloader'
+import { DashcamDownloader } from './DashcamDownloader'
 import { GlobalState } from './GlobalState'
 import { HomeTransfer } from './HomeTransfer'
-import { RaspiLED } from './raspiLed'
-import { getDownloadDirectory } from './settings'
+import { RaspiLED } from './RaspiLed'
+import { Settings } from './Settings'
 import { sleep } from './utils'
-import { enableWifi, isConnectedToDashcamWifi, isConnectedToHomeWifi, tryToConnectToDashcamWifi, tryToConnectToHomeWifi } from './WIFI'
+import { Wifi } from './WIFI'
 
 const appStart = async () => {
   preventMultipleRuns()
@@ -16,24 +16,24 @@ const appStart = async () => {
 
   RaspiLED.initialize()
 
-  if (!fs.existsSync((await getDownloadDirectory()) + '/locked')) {
-    fs.mkdirSync((await getDownloadDirectory()))
-    fs.mkdirSync((await getDownloadDirectory()) + '/locked')
+  if (!fs.existsSync((await Settings.getDownloadDirectory()) + '/locked')) {
+    fs.mkdirSync((await Settings.getDownloadDirectory()))
+    fs.mkdirSync((await Settings.getDownloadDirectory()) + '/locked')
   }
 
-  enableWifi()
+  await Wifi.enableWifi()
 
   while (true) {
     await sleep(5000)
 
-    if (await isConnectedToDashcamWifi() && !GlobalState.dashcamTransferDone) {
-      await downloadLockedVideosFromDashcam()
-    } else if (await isConnectedToHomeWifi() && !GlobalState.homeTransferDone) {
+    if (await Wifi.isConnectedToDashcamWifi() && !GlobalState.dashcamTransferDone) {
+      await DashcamDownloader.downloadLockedVideosFromDashcam()
+    } else if (await Wifi.isConnectedToHomeWifi() && !GlobalState.homeTransferDone) {
       await HomeTransfer.transferToHome()
     } else {
       try {
         if (!GlobalState.dashcamTransferDone) {
-          await tryToConnectToDashcamWifi()
+          await Wifi.tryToConnectToDashcamWifi()
           continue
         }
       } catch {
@@ -42,7 +42,7 @@ const appStart = async () => {
 
       try {
         if (!GlobalState.homeTransferDone) {
-          await tryToConnectToHomeWifi()
+          await Wifi.tryToConnectToHomeWifi()
           continue
         }
       } catch {

@@ -1,11 +1,11 @@
 import { GlobalState } from './GlobalState'
-import { smbTransferToHome } from './hometransfert/smb'
-import { RaspiLED } from './raspiLed'
+import { SMB } from './hometransfert/SMB'
+import { RaspiLED } from './RaspiLed'
 
 export class HomeTransfer {
   public static async transferToHome () {
     GlobalState.dashcamTransferDone = false
     RaspiLED.operation = 'HOMETRANSFER'
-    await smbTransferToHome()
+    await SMB.smbTransferToHome()
   }
 }

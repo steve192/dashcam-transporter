@@ -1,4 +1,4 @@
-import { RaspiLED } from './raspiLed'
+import { RaspiLED } from './RaspiLed'
 
 export class GlobalState {
   // Prevents from connecting to dashcam and downloading videos
