@@ -1,5 +1,5 @@
 # dashcam-transporter
-Application running on a raspberry pi, to transfer and archive your dashcam video files to your preferred storage
+Application running on a raspberry pi (or other debian based platforms), to transfer and archive your dashcam video files to your preferred storage
 
 ![Transfer illustration](/docs/img/transfer_illustration.svg "Transfer illustration")
 
@@ -19,11 +19,12 @@ Application running on a raspberry pi, to transfer and archive your dashcam vide
 # Installation
 
 ## Automated script
-- Setup raspbian lite and execute
+- Setup raspbian lite (or other debian based os, this is not tested though) and execute
 
 `curl -o- https://raw.githubusercontent.com/steve192/dashcam-transporter/main/install.sh | bash`
 ## Manual
-- Setup raspbian lite
+- Setup raspbian lite (or other debian based os, this is not tested though)
+    - Ensure npm is installed if using something different than raspberry pi (`sudo apt install node npm`)
 - Install git and node `sudo apt update && sudo apt install git nodejs npm`
 - Download clone dashcam transporter from github 
     - `git clone https://github.com/steve192/dashcam-transporter.git`
