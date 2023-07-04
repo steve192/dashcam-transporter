@@ -12,6 +12,12 @@ export class Settings {
     return properties.get('dashcam.password') as string
   }
 
+  public static async getDashcamModel () {
+    let model = properties.get('dashcam.model') as string
+    model = model ?? 'VIOFOA199MINI'
+    return model
+  }
+
   public static async getHomeWifiSSID () {
     return properties.get('home.ssid') as string
   }
