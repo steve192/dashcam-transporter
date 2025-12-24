@@ -4,6 +4,6 @@ Section: utils
 Priority: optional
 Architecture: @ARCH@
 Maintainer: Dashcam Transporter <noreply@dashcam-transporter.local>
-Depends: nodejs (>= 12), npm, build-essential, python3, network-manager, smbclient, curl, ca-certificates, logrotate
+Depends: nodejs (>= 18), npm, build-essential, python3, network-manager, smbclient, curl, ca-certificates, logrotate
 Description: Dashcam transporter service for Raspberry Pi
  Transfers locked dashcam video files to your storage when on home WiFi.

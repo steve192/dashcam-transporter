@@ -13,8 +13,8 @@
   "author": "",
   "license": "ISC",
   "engines": {
-    "node": ">=12 <13",
-    "npm": ">=8"
+    "node": ">=18 <19",
+    "npm": ">=10"
   },
   "bin": {
     "dashcam-transporter-backend": "./dist/app.js"

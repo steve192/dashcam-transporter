@@ -16,8 +16,8 @@ permissions:
   contents: write
 
 env:
-  NODE_VERSION: 12.9.1
-  NPM_VERSION: 8.19.4
+  NODE_VERSION: 18.20.4
+  NPM_VERSION: 10.5.0
 
 jobs:
   semantic-preview:

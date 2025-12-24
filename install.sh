@@ -6,6 +6,13 @@ REPO_DEFAULT="steve192/dashcam-transporter"
 REPO="${DASHCAM_TRANSPORTER_REPO:-$REPO_DEFAULT}"
 ARCH="$(dpkg --print-architecture)"
 
+install_node18() {
+  echo "Installing Node.js 18"
+  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  apt_updated=1
+}
+
 fetch_latest_version() {
   curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
     | sed -n -E 's/.*"tag_name": "([^"]+)".*/\1/p' \
@@ -31,6 +38,22 @@ if ! command -v curl >/dev/null 2>&1; then
   sudo apt-get update
   apt_updated=1
   sudo apt-get install -y curl
+fi
+
+if command -v node >/dev/null 2>&1; then
+  node_version="$(node -v | sed 's/^v//')"
+  node_major="${node_version%%.*}"
+  if [ "$node_major" -lt 18 ]; then
+    echo "Detected Node.js v${node_version}. This installer will upgrade to Node.js 18."
+    read -r -p "Continue? [y/N] " response
+    case "$response" in
+      y|Y|yes|YES) install_node18 ;;
+      *) echo "Aborted."; exit 1 ;;
+    esac
+  fi
+else
+  echo "Node.js not found. Installing Node.js 18."
+  install_node18
 fi
 
 version="${DASHCAM_TRANSPORTER_VERSION:-}"
