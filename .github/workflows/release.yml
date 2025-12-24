@@ -109,6 +109,9 @@ jobs:
               npm install -g "npm@${NPM_VERSION}"
               node -v
               npm -v
+              if [ -n "${VERSION}" ]; then
+                (cd /workspace/backend && npm version --no-git-tag-version "${VERSION}")
+              fi
               ./packaging/build-deb.sh
               chown -R "$HOST_UID:$HOST_GID" /workspace/dist
             '
