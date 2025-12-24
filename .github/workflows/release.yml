@@ -7,6 +7,10 @@ on:
         description: Run semantic-release in dry-run mode
         required: false
         default: 'false'
+      skip_install_test:
+        description: Skip install test job
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -130,7 +134,7 @@ jobs:
   test-install:
     runs-on: ubuntu-latest
     needs: [semantic-preview, build]
-    if: needs.semantic-preview.outputs.published == 'true' && inputs.dry_run != 'true'
+    if: needs.semantic-preview.outputs.published == 'true' && inputs.dry_run != 'true' && inputs.skip_install_test != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -181,7 +185,14 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: [semantic-preview, build, test-install]
-    if: needs.semantic-preview.outputs.published == 'true' && inputs.dry_run != 'true'
+    if: >-
+      ${{
+        always() &&
+        needs.semantic-preview.outputs.published == 'true' &&
+        inputs.dry_run != 'true' &&
+        needs.build.result == 'success' &&
+        (needs.test-install.result == 'success' || needs.test-install.result == 'skipped')
+      }}
 
     steps:
       - name: Checkout
