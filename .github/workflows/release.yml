@@ -114,7 +114,10 @@ jobs:
               node -v
               npm -v
               if [ -n "${VERSION}" ]; then
-                (cd /workspace/backend && npm version --no-git-tag-version "${VERSION}")
+                current_version="$(node -p "require(\"./backend/package.json\").version")"
+                if [ "${current_version}" != "${VERSION}" ]; then
+                  (cd /workspace/backend && npm version --no-git-tag-version "${VERSION}")
+                fi
               fi
               ./packaging/build-deb.sh
               chown -R "$HOST_UID:$HOST_GID" /workspace/dist
