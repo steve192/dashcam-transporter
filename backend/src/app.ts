@@ -16,38 +16,40 @@ const appStart = async () => {
 
   RaspiLED.initialize()
 
-  if (!fs.existsSync((await Settings.getDownloadDirectory()) + '/locked')) {
-    fs.mkdirSync((await Settings.getDownloadDirectory()))
-    fs.mkdirSync((await Settings.getDownloadDirectory()) + '/locked')
-  }
+  const downloadDirectory = await Settings.getDownloadDirectory()
+  fs.mkdirSync(downloadDirectory, { recursive: true })
+  fs.mkdirSync(downloadDirectory + '/locked', { recursive: true })
 
   await Wifi.enableWifi()
 
   while (true) {
     await sleep(5000)
-
-    if (await Wifi.isConnectedToDashcamWifi() && !GlobalState.dashcamTransferDone) {
-      await DashcamDownloader.downloadLockedVideosFromDashcam()
-    } else if (await Wifi.isConnectedToHomeWifi() && !GlobalState.homeTransferDone) {
-      await HomeTransfer.transferToHome()
-    } else {
-      try {
-        if (!GlobalState.dashcamTransferDone) {
-          await Wifi.tryToConnectToDashcamWifi()
-          continue
+    try {
+      if (await Wifi.isConnectedToDashcamWifi() && !GlobalState.dashcamTransferDone) {
+        await DashcamDownloader.downloadLockedVideosFromDashcam()
+      } else if (await Wifi.isConnectedToHomeWifi() && !GlobalState.homeTransferDone) {
+        await HomeTransfer.transferToHome()
+      } else {
+        try {
+          if (!GlobalState.dashcamTransferDone) {
+            await Wifi.tryToConnectToDashcamWifi()
+            continue
+          }
+        } catch {
+          console.log('Could not connect to dashcam wifi')
         }
-      } catch {
-        console.log('Could not connect to dashcam wifi')
-      }
 
-      try {
-        if (!GlobalState.homeTransferDone) {
-          await Wifi.tryToConnectToHomeWifi()
-          continue
+        try {
+          if (!GlobalState.homeTransferDone) {
+            await Wifi.tryToConnectToHomeWifi()
+            continue
+          }
+        } catch {
+          console.log('Could not connect to home wifi')
         }
-      } catch {
-        console.log('Could not connect to home wifi')
       }
+    } catch (error) {
+      console.error('Error in main loop', error)
     }
   }
 }

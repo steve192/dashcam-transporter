@@ -1,7 +1,11 @@
+import fs from 'fs'
+import path from 'path'
 import propertiesReader from 'properties-reader'
 
-// eslint-disable-next-line n/no-path-concat
-const properties = propertiesReader(__dirname + '/settings.ini')
+const defaultSettingsPath = process.env.DASHCAM_TRANSPORTER_SETTINGS ?? '/etc/dashcam-transporter/settings.ini'
+const localSettingsPath = path.join(__dirname, 'settings.ini')
+const settingsPath = fs.existsSync(defaultSettingsPath) ? defaultSettingsPath : localSettingsPath
+const properties = propertiesReader(settingsPath)
 
 export class Settings {
   public static async getDashcamWifiSSID () {
@@ -31,8 +35,9 @@ export class Settings {
   }
 
   public static async getSMBSettings () {
+    const enabledValue = properties.get('smb.enabled')
     return {
-      enabled: properties.get('smb.enabled') === 'true',
+      enabled: String(enabledValue).toLowerCase() === 'true',
       host: properties.get('smb.host') as string,
       username: properties.get('smb.username') as string,
       password: properties.get('smb.password') as string,

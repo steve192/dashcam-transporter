@@ -33,8 +33,8 @@ export class VIOFO {
 
     for (const file of parsedResponse.LIST.ALLFile) {
       let downloadUrl = file.File.FPATH
-      downloadUrl = downloadUrl.replace('A:', '')
-      downloadUrl = downloadUrl.replace('\\', '/')
+      downloadUrl = downloadUrl.replace(/^A:/, '')
+      downloadUrl = downloadUrl.replace(/\\/g, '/')
       downloadUrl = protocolAndIp + downloadUrl
 
       switch (file.File.ATTR) {
@@ -68,10 +68,12 @@ export class VIOFO {
       const path = Path.resolve(downloadDirectory, 'locked', file.File.NAME)
       const writer = Fs.createWriteStream(path)
 
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      axios.get(downloadUrl, { responseType: 'stream' }).then(stream => {
-        stream.data.pipe(writer)
-      })
+      axios.get(downloadUrl, { responseType: 'stream' })
+        .then(response => {
+          response.data.on('error', reject)
+          response.data.pipe(writer)
+        })
+        .catch(reject)
 
       writer.on('finish', resolve)
       writer.on('error', reject)

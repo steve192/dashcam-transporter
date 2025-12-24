@@ -1,0 +1,122 @@
+#!/bin/sh
+set -eu
+
+APP_NAME="dashcam-transporter"
+REPO_DEFAULT="steve192/dashcam-transporter"
+REPO="${DASHCAM_TRANSPORTER_REPO:-$REPO_DEFAULT}"
+ARCH="$(dpkg --print-architecture)"
+LOG_FILE="/var/log/dashcam-transporter/app.log"
+
+usage() {
+  cat <<USAGE
+Usage: dashcam-transporter <command>
+
+Commands:
+  update   Download and install the latest .deb for this architecture
+  status   Show service status
+  logs     Tail recent logs
+USAGE
+}
+
+require_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    exec sudo -- "$0" "$@"
+  fi
+}
+
+fetch_latest_version() {
+  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+    | sed -n -E 's/.*"tag_name": "([^"]+)".*/\1/p' \
+    | head -n 1
+}
+
+update() {
+  case "$ARCH" in
+    armhf|arm64|amd64|i386) ;;
+    *)
+      echo "Unsupported architecture: $ARCH" >&2
+      exit 1
+      ;;
+  esac
+
+  version="${DASHCAM_TRANSPORTER_VERSION:-}"
+  if [ -z "$version" ]; then
+    tag="$(fetch_latest_version)"
+    if [ -z "$tag" ]; then
+      echo "Failed to determine latest release tag for ${REPO}" >&2
+      exit 1
+    fi
+    version="${tag#v}"
+  else
+    tag="${version}"
+    version="${version#v}"
+  fi
+
+  asset="${APP_NAME}_${version}_${ARCH}.deb"
+  url="https://github.com/${REPO}/releases/download/${tag}/${asset}"
+  tmp="$(mktemp -t ${APP_NAME}.XXXXXX.deb)"
+
+  cleanup() {
+    rm -f "$tmp"
+  }
+  trap cleanup EXIT
+
+  echo "Downloading $url"
+  curl -fsSL "$url" -o "$tmp"
+  chmod 644 "$tmp"
+
+  echo "Installing $asset"
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update
+    apt-get install -y "$tmp"
+  else
+    dpkg -i "$tmp"
+  fi
+}
+
+show_status() {
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl status --no-pager dashcam-transporter
+  else
+    echo "systemctl not available"
+    exit 1
+  fi
+}
+
+show_logs() {
+  if [ -f "$LOG_FILE" ]; then
+    tail -n 200 "$LOG_FILE"
+    exit 0
+  fi
+
+  if command -v journalctl >/dev/null 2>&1; then
+    journalctl -u dashcam-transporter --no-pager -n 200
+    exit 0
+  fi
+
+  echo "No logs available"
+  exit 1
+}
+
+command="${1:-}"
+case "$command" in
+  update)
+    shift
+    require_root update "$@"
+    update
+    ;;
+  status)
+    show_status
+    ;;
+  logs)
+    show_logs
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    echo "Unknown command: $command" >&2
+    usage
+    exit 1
+    ;;
+ esac

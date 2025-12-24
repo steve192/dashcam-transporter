@@ -17,24 +17,37 @@ Application running on a raspberry pi (or other debian based platforms), to tran
 
 
 # Installation
+The supported installation method is the `.deb` package (install script or manual download). Source installs are for development only.
 
 ## Automated script
 - Setup raspbian lite (or other debian based os, this is not tested though) and execute
 
 `curl -o- https://raw.githubusercontent.com/steve192/dashcam-transporter/main/install.sh | bash`
+
+This installs the latest `.deb` release, sets up a systemd service, and keeps configuration in `/etc/dashcam-transporter/settings.ini`.
+
+## Update
+- Update to the latest release with
+
+`sudo dashcam-transporter update`
+
+## Logs
+- Logs are written to `/var/log/dashcam-transporter/app.log`
+- View logs with `sudo dashcam-transporter logs`
+
+## Uninstall
+- Remove the package (keep config): `sudo apt remove dashcam-transporter`
+- Remove everything including config: `sudo apt purge dashcam-transporter`
+
 ## Manual
-- Setup raspbian lite (or other debian based os, this is not tested though)
-    - Ensure npm is installed if using something different than raspberry pi (`sudo apt install node npm`)
-- Install git and node `sudo apt update && sudo apt install git nodejs npm`
-- Download clone dashcam transporter from github 
-    - `git clone https://github.com/steve192/dashcam-transporter.git`
-- Navigate to the directory `cd dashcam-transporter/backend`
-- Install node modules `npm i`
-- Build `npm run build`
-- Navigate to the build result `cd dist`
-- Execute setup script `sudo ./setup.sh`
-- Edit the settings.ini file `nano settings.ini`
-- Reboot and the script will automatically be started `sudo reboot`
+- Download the `.deb` release for your architecture (armhf/arm64/amd64/i386)
+- Install it: `sudo apt install ./dashcam-transporter_<version>_<arch>.deb`
+- Edit the configuration: `sudo nano /etc/dashcam-transporter/settings.ini`
+- Check service status: `sudo dashcam-transporter status`
+
+## Network manager
+- The installer enables NetworkManager and disables `dhcpcd` (required for node-wifi).
+- To skip this step, create `/etc/dashcam-transporter/skip-networkmanager-setup` before installation.
 
 
 # Meaning of leds

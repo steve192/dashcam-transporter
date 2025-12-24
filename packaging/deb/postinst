@@ -1,0 +1,74 @@
+#!/bin/sh
+set -e
+
+APP_USER="dashcam-transporter"
+APP_GROUP="dashcam-transporter"
+APP_DIR="/opt/dashcam-transporter"
+CONFIG_DIR="/etc/dashcam-transporter"
+LOG_DIR="/var/log/dashcam-transporter"
+STATE_DIR="/var/lib/dashcam-transporter"
+DOWNLOAD_DIR="/opt/videodownload"
+
+if ! getent group "$APP_GROUP" >/dev/null 2>&1; then
+  groupadd --system "$APP_GROUP"
+fi
+
+if ! id -u "$APP_USER" >/dev/null 2>&1; then
+  useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin --gid "$APP_GROUP" "$APP_USER"
+fi
+
+install -d -o "$APP_USER" -g "$APP_GROUP" "$LOG_DIR" "$STATE_DIR" "$DOWNLOAD_DIR"
+
+if command -v npm >/dev/null 2>&1 && [ -d "$APP_DIR/node_modules" ]; then
+  echo "Rebuilding native modules for installed Node.js"
+  (cd "$APP_DIR" && npm rebuild --build-from-source --unsafe-perm)
+fi
+
+chown -R "$APP_USER":"$APP_GROUP" "$APP_DIR" "$DOWNLOAD_DIR"
+
+if [ -f "$CONFIG_DIR/settings.ini" ]; then
+  chown root:"$APP_GROUP" "$CONFIG_DIR/settings.ini"
+  chmod 640 "$CONFIG_DIR/settings.ini"
+fi
+
+if [ ! -f "$CONFIG_DIR/skip-networkmanager-setup" ]; then
+  if command -v systemctl >/dev/null 2>&1; then
+    if [ ! -f "$STATE_DIR/networkmanager-enabled-before" ]; then
+      systemctl is-enabled NetworkManager > "$STATE_DIR/networkmanager-enabled-before" 2>/dev/null || true
+    fi
+    if [ ! -f "$STATE_DIR/networkmanager-active-before" ]; then
+      systemctl is-active NetworkManager > "$STATE_DIR/networkmanager-active-before" 2>/dev/null || true
+    fi
+    if [ ! -f "$STATE_DIR/dhcpcd-enabled-before" ]; then
+      systemctl is-enabled dhcpcd > "$STATE_DIR/dhcpcd-enabled-before" 2>/dev/null || true
+    fi
+    if [ ! -f "$STATE_DIR/dhcpcd-active-before" ]; then
+      systemctl is-active dhcpcd > "$STATE_DIR/dhcpcd-active-before" 2>/dev/null || true
+    fi
+
+    systemctl enable NetworkManager >/dev/null 2>&1 || true
+    systemctl start NetworkManager >/dev/null 2>&1 || true
+
+    if systemctl is-enabled --quiet dhcpcd; then
+      systemctl disable dhcpcd >/dev/null 2>&1 || true
+    fi
+    systemctl stop dhcpcd >/dev/null 2>&1 || true
+  fi
+fi
+
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  systemctl enable dashcam-transporter >/dev/null 2>&1 || true
+  systemctl try-restart dashcam-transporter >/dev/null 2>&1 || systemctl start dashcam-transporter >/dev/null 2>&1 || true
+fi
+
+cat <<'EOF'
+
+Dashcam Transporter installed.
+Edit /etc/dashcam-transporter/settings.ini and then restart the service:
+  systemctl restart dashcam-transporter
+Or reboot the system.
+
+EOF
+
+exit 0
