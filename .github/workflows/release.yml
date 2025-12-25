@@ -144,8 +144,6 @@ jobs:
         include:
           - arch: amd64
             platform: linux/amd64
-          - arch: i386
-            platform: linux/386
           - arch: arm64
             platform: linux/arm64
           - arch: armhf
@@ -176,6 +174,8 @@ jobs:
               chmod +x /usr/sbin/policy-rc.d
               apt-get -o Acquire::Retries=3 update
               apt-get -o Acquire::Retries=3 install -y ca-certificates curl
+              curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+              apt-get -o Acquire::Retries=3 install -y nodejs
               mkdir -p /etc/dashcam-transporter
               touch /etc/dashcam-transporter/skip-networkmanager-setup
               apt-get -o Acquire::Retries=3 install -y /artifacts/dashcam-transporter_${VERSION}_${ARCH}.deb
