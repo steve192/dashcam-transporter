@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { Logger } from './Logger'
 
 export class RaspiLED {
   // Operations
@@ -82,7 +83,7 @@ export class RaspiLED {
         }
       }
     }
-    console.log('LEDs setup')
+    Logger.info('LEDs setup')
     RaspiLED.updateStatus()
   }
 
@@ -114,7 +115,7 @@ export class RaspiLED {
         } catch (e) {
           RaspiLED.ledWriteDisabled.add(ledName)
           const message = e instanceof Error ? e.message : 'unknown error'
-          console.log(`LED write failed for ${ledName}: ${message}`)
+          Logger.warn(`LED write failed for ${ledName}: ${message}`)
         }
       }
     }

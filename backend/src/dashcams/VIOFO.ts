@@ -3,6 +3,7 @@ import { XMLParser } from 'fast-xml-parser'
 import Fs from 'fs'
 import Path from 'path'
 import { GlobalState } from '../GlobalState'
+import { Logger } from '../Logger'
 import { Settings } from '../Settings'
 import { enoughSpaceAvailable } from '../utils'
 
@@ -43,7 +44,7 @@ export class VIOFO {
           await VIOFO.deleteVideo(downloadUrl)
           break
         case 32:
-          console.log('Video is not locked, ignoring', file.File.FPATH)
+          Logger.debug('Video is not locked, ignoring', file.File.FPATH)
           break
       }
     }
@@ -52,18 +53,18 @@ export class VIOFO {
   }
 
   private static async deleteVideo (downloadUrl: string) {
-    console.log('deleting video', downloadUrl)
+    Logger.debug('Deleting video', downloadUrl)
     await axios.delete(downloadUrl)
   }
 
   private static async downloadVideo (file: { File: File }, downloadDirectory: string, downloadUrl: string) {
     if (!await enoughSpaceAvailable(file.File.SIZE)) {
-      console.log('Not enough space available.')
+      Logger.warn('Not enough space available.')
       GlobalState.dashcamTransferDone = true
       throw new Error('Not enough space available')
     }
     return await new Promise((resolve, reject) => {
-      console.log('Downloading locked video', file.File.FPATH)
+      Logger.info('Downloading locked video', file.File.FPATH)
 
       const path = Path.resolve(downloadDirectory, 'locked', file.File.NAME)
       const writer = Fs.createWriteStream(path)

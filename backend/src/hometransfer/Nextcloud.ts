@@ -1,13 +1,14 @@
 import fs from 'fs'
 import path from 'path'
 import axios, { type AxiosInstance } from 'axios'
+import { Logger } from '../Logger'
 import { Settings } from '../Settings'
 
 export class Nextcloud {
   public static async nextcloudTransferToHome (lockedFilesDirectory: string, lockedFiles: string[]) {
     const settings = await Settings.getNextcloudSettings()
     if (!settings.enabled) {
-      console.log('Nextcloud transfer disabled, skipping')
+      Logger.debug('Nextcloud transfer disabled, skipping')
       return
     }
     if (settings.url == null || settings.url.trim() === '') {
@@ -27,26 +28,26 @@ export class Nextcloud {
     const basePath = normalizedBasePath === '' ? 'dashcam-transfer' : normalizedBasePath
     const lockedPath = `${basePath}/locked`
     if (!fs.existsSync(lockedFilesDirectory)) {
-      console.log('No locked files directory found, skipping Nextcloud transfer')
+      Logger.debug('No locked files directory found, skipping Nextcloud transfer')
       return
     }
     if (lockedFiles.length === 0) {
-      console.log('No locked files found, skipping Nextcloud transfer')
+      Logger.debug('No locked files found, skipping Nextcloud transfer')
       return
     }
 
-    console.log('Connecting to nextcloud', settings.url, basePath)
+    Logger.info('Connecting to nextcloud', settings.url, basePath)
     const client = Nextcloud.createClient(settings.url, settings.username, settings.password)
     await Nextcloud.ensureDirectory(client, basePath)
     await Nextcloud.ensureDirectory(client, lockedPath)
 
     for (const file of lockedFiles) {
-      console.log('Uploading file to nextcloud', file)
+      Logger.debug('Uploading file to nextcloud', file)
       const localPath = path.join(lockedFilesDirectory, file)
       await Nextcloud.uploadFile(client, localPath, `${lockedPath}/${file}`)
     }
 
-    console.log('All files uploaded')
+    Logger.info('All files uploaded')
   }
 
   private static createClient (baseUrl: string, username: string, password: string) {
