@@ -9,6 +9,19 @@ import { Settings } from './Settings'
 import { sleep } from './utils'
 import { Wifi } from './WIFI'
 
+const originalLog = console.log.bind(console)
+const originalInfo = console.info.bind(console)
+const originalWarn = console.warn.bind(console)
+const originalError = console.error.bind(console)
+const logWithTimestamp = (writer: (...args: any[]) => void) => {
+  return (...args: any[]) => { writer(`[${new Date().toISOString()}]`, ...args); }
+}
+
+console.log = logWithTimestamp(originalLog)
+console.info = logWithTimestamp(originalInfo)
+console.warn = logWithTimestamp(originalWarn)
+console.error = logWithTimestamp(originalError)
+
 const appStart = async () => {
   preventMultipleRuns()
 
