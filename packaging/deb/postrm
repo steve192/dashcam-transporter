@@ -57,4 +57,11 @@ if [ "$1" = "purge" ]; then
   rm -f "$CONFIG_DIR/skip-networkmanager-setup"
 fi
 
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+  if command -v udevadm >/dev/null 2>&1; then
+    udevadm control --reload-rules >/dev/null 2>&1 || true
+    udevadm trigger --subsystem-match=leds >/dev/null 2>&1 || true
+  fi
+fi
+
 exit 0

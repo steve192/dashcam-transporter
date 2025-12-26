@@ -67,5 +67,6 @@ Tip: Use a separate settings file by exporting `DASHCAM_TRANSPORTER_SETTINGS=/et
 
 # Meaning of leds
 The script controls the raspberrys leds
-- Blinking LEDs - Waiting for connections to dashcam of home network (Will also blink if there is nothing to transfer)
-- LEDs on - Transfer is currently running
+- Fast blinking LEDs - Transferring from dashcam to the Pi
+- Slow blinking LEDs - Transferring from the Pi to the target storage
+- Double blink then pause - Idle (waiting for next transfer)

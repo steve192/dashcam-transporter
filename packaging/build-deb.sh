@@ -36,6 +36,7 @@ mkdir -p "$PKG_ROOT/DEBIAN"
 mkdir -p "$PKG_ROOT/opt/${APP_NAME}"
 mkdir -p "$PKG_ROOT/etc/${APP_NAME}"
 mkdir -p "$PKG_ROOT/lib/systemd/system"
+mkdir -p "$PKG_ROOT/lib/udev/rules.d"
 mkdir -p "$PKG_ROOT/usr/bin"
 mkdir -p "$PKG_ROOT/etc/logrotate.d"
 mkdir -p "$PKG_ROOT/etc/polkit-1/rules.d"
@@ -64,6 +65,8 @@ install -m 644 "$ROOT_DIR/packaging/deb/dashcam-transporter.logrotate" \
   "$PKG_ROOT/etc/logrotate.d/dashcam-transporter"
 install -m 644 "$ROOT_DIR/packaging/deb/dashcam-transporter.rules" \
   "$PKG_ROOT/etc/polkit-1/rules.d/50-dashcam-transporter.rules"
+install -m 644 "$ROOT_DIR/packaging/deb/dashcam-transporter-leds.rules" \
+  "$PKG_ROOT/lib/udev/rules.d/90-dashcam-transporter-leds.rules"
 
 OUTPUT_FILE="${OUTPUT_DIR}/${APP_NAME}_${VERSION}_${ARCH}.deb"
 if command -v fakeroot >/dev/null 2>&1; then
