@@ -10,7 +10,7 @@ export class RaspiLED {
   private static ledStatus = false
   private static ledNames: string[] = []
   private static ledWriteDisabled = new Set<string>()
-  private static readonly fastBlinkMs = 200
+  private static readonly fastBlinkMs = 100
   private static readonly slowBlinkMs = 500
   private static readonly idleBlinkMs = 150
   private static readonly idlePauseMs = 1200
