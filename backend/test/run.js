@@ -29,26 +29,100 @@ fs.writeFileSync(
 
 process.env.DASHCAM_TRANSPORTER_SETTINGS = settingsPath
 
-const mockWifi = {
-  lastInit: null,
-  lastConnect: null,
-  disconnected: false,
-  currentConnections: [],
-  scanResults: [],
-  init: function (opts) {
-    this.lastInit = opts
+const mockNmcli = {
+  commands: [],
+  scanResults: [
+    { ssid: 'dashcam-ssid', security: 'WPA2' },
+    { ssid: 'home-ssid', security: 'WPA2' }
+  ],
+  activeSsids: [],
+  devices: [
+    { device: 'wlan0', type: 'wifi', state: 'connected' }
+  ],
+  failConnect: false,
+  lastConnectArgs: null,
+  lastUpConnection: null,
+  lastModifyArgs: [],
+  connectionNames: [],
+  connectionMap: {},
+  handle: function (args) {
+    if (args.includes('dev') && args.includes('wifi') && args.includes('list')) {
+      const lines = this.scanResults.map((entry) => `${entry.ssid}:${entry.security}`)
+      return { stdout: lines.join('\n') + '\n' }
+    }
+    if (args.includes('-f') && args.includes('ACTIVE,SSID')) {
+      const lines = this.activeSsids.map((ssid) => `yes:${ssid}`)
+      return { stdout: lines.join('\n') + '\n' }
+    }
+    if (args.includes('-f') && args.includes('DEVICE,TYPE,STATE')) {
+      const lines = this.devices.map((entry) => `${entry.device}:${entry.type}:${entry.state}`)
+      return { stdout: lines.join('\n') + '\n' }
+    }
+    if (args.includes('connection') && args.includes('show') && args.includes('NAME')) {
+      const lines = this.connectionNames
+      return { stdout: lines.join('\n') + '\n' }
+    }
+    if (args.includes('connection') && args.includes('add')) {
+      const nameIndex = args.indexOf('con-name') + 1
+      const name = args[nameIndex]
+      const ssidIndex = args.indexOf('ssid') + 1
+      const ssid = args[ssidIndex]
+      if (name) {
+        this.connectionNames.push(name)
+        if (ssid) {
+          this.connectionMap[name] = ssid
+        }
+      }
+      return { stdout: '' }
+    }
+    if (args.includes('connection') && args.includes('modify')) {
+      this.lastModifyArgs.push(args.slice())
+      return { stdout: '' }
+    }
+    if (args.includes('connection') && args.includes('up')) {
+      const name = args[args.indexOf('up') + 1]
+      this.lastUpConnection = name
+      this.lastConnectArgs = args
+      if (name) {
+        const ssid = this.connectionMap[name] || name
+        this.activeSsids = [ssid]
+      }
+      return { stdout: '' }
+    }
+    if (args.includes('dev') && args.includes('wifi') && args.includes('connect')) {
+      this.lastConnectArgs = args
+      if (this.failConnect) {
+        return { error: 'connect failed', stderr: 'connect failed' }
+      }
+      const ssidIndex = args.indexOf('connect') + 1
+      const ssid = args[ssidIndex]
+      if (ssid) {
+        this.activeSsids = [ssid]
+      }
+      return { stdout: '' }
+    }
+    if (args.includes('dev') && args.includes('disconnect')) {
+      this.activeSsids = []
+      return { stdout: '' }
+    }
+    if (args.includes('radio') && args.includes('wifi') && args.includes('on')) {
+      return { stdout: '' }
+    }
+    return { stdout: '' }
   },
-  connect: async function (opts) {
-    this.lastConnect = opts
-  },
-  disconnect: async function () {
-    this.disconnected = true
-  },
-  getCurrentConnections: async function () {
-    return this.currentConnections
-  },
-  scan: async function () {
-    return this.scanResults
+  reset: function () {
+    this.commands = []
+    this.scanResults = [
+      { ssid: 'dashcam-ssid', security: 'WPA2' },
+      { ssid: 'home-ssid', security: 'WPA2' }
+    ]
+    this.activeSsids = []
+    this.failConnect = false
+    this.lastConnectArgs = null
+    this.lastUpConnection = null
+    this.lastModifyArgs = []
+    this.connectionNames = []
+    this.connectionMap = {}
   }
 }
 
@@ -138,7 +212,31 @@ const mockDiskusage = {
 }
 
 const mockModules = {
-  'node-wifi': { __esModule: true, default: mockWifi },
+  child_process: {
+    execFile: function (cmd, args, options, callback) {
+      let cb = callback
+      let opts = options
+      if (typeof options === 'function') {
+        cb = options
+        opts = undefined
+      }
+      mockNmcli.commands.push({ cmd, args, options: opts })
+      if (cmd !== 'nmcli') {
+        const err = new Error('Unexpected command')
+        cb(err)
+        return
+      }
+      const result = mockNmcli.handle(args)
+      if (result.error) {
+        const err = new Error(result.error)
+        err.stdout = result.stdout
+        err.stderr = result.stderr
+        cb(err, result.stdout || '', result.stderr || '')
+        return
+      }
+      cb(null, result.stdout || '', result.stderr || '')
+    }
+  },
   axios: { __esModule: true, default: mockAxios },
   'samba-client': { __esModule: true, default: SambaClientMock },
   diskusage: { __esModule: true, default: mockDiskusage }
@@ -166,14 +264,7 @@ const tests = []
 const test = (name, fn) => tests.push({ name, fn })
 
 const resetMocks = () => {
-  mockWifi.lastInit = null
-  mockWifi.lastConnect = null
-  mockWifi.disconnected = false
-  mockWifi.currentConnections = []
-  mockWifi.scanResults = [
-    { ssid: 'dashcam-ssid' },
-    { ssid: 'home-ssid' }
-  ]
+  mockNmcli.reset()
   mockAxios.deletes = []
   mockAxios.downloads = []
   mockAxios.failDownloads = false
@@ -204,13 +295,18 @@ test('enoughSpaceAvailable respects buffer', async () => {
 test('Wifi connects to dashcam credentials', async () => {
   await Wifi.enableWifi()
   await Wifi.tryToConnectToDashcamWifi()
-  assert.deepStrictEqual(mockWifi.lastConnect, { ssid: 'dashcam-ssid', password: 'secret' })
+  assert.ok(mockNmcli.lastUpConnection)
+  assert.strictEqual(mockNmcli.lastUpConnection.startsWith('dashcam-transporter-dashcam-'), true)
+  const flattened = mockNmcli.lastModifyArgs.flat()
+  assert.strictEqual(flattened.includes('802-11-wireless-security.key-mgmt'), true)
+  assert.strictEqual(flattened.includes('wpa-psk'), true)
+  assert.strictEqual(flattened.includes('802-11-wireless-security.psk'), true)
 })
 
 test('Wifi connection detection works', async () => {
-  mockWifi.currentConnections = [{ ssid: 'dashcam-ssid' }]
+  mockNmcli.activeSsids = ['dashcam-ssid']
   assert.strictEqual(await Wifi.isConnectedToDashcamWifi(), true)
-  mockWifi.currentConnections = [{ ssid: 'other' }]
+  mockNmcli.activeSsids = ['other']
   assert.strictEqual(await Wifi.isConnectedToDashcamWifi(), false)
 })
 

@@ -51,7 +51,7 @@ This installs the latest `.deb` release, sets up a systemd service, and keeps co
 - Check service status: `sudo dashcam-transporter status`
 
 ## Network manager
-- The installer enables NetworkManager and disables `dhcpcd` (required for node-wifi).
+- The installer enables NetworkManager and disables `dhcpcd` (required for nmcli-based WiFi control).
 - To skip this step, create `/etc/dashcam-transporter/skip-networkmanager-setup` before installation.
 
 # Test a branch on Raspberry Pi 
