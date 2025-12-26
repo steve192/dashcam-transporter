@@ -11,6 +11,9 @@ export class DashcamDownloader {
       case 'VIOFOA199MINI':
         await VIOFO.downloadLockedVideosFromDashcam()
         break
+      case 'VIOFO':
+        await VIOFO.downloadLockedVideosFromDashcam()
+        break
       default:
         await VIOFO.downloadLockedVideosFromDashcam()
         break
