@@ -38,6 +38,7 @@ mkdir -p "$PKG_ROOT/etc/${APP_NAME}"
 mkdir -p "$PKG_ROOT/lib/systemd/system"
 mkdir -p "$PKG_ROOT/usr/bin"
 mkdir -p "$PKG_ROOT/etc/logrotate.d"
+mkdir -p "$PKG_ROOT/etc/polkit-1/rules.d"
 
 sed -e "s/@VERSION@/${VERSION}/g" -e "s/@ARCH@/${ARCH}/g" \
   "$ROOT_DIR/packaging/deb/control" > "$PKG_ROOT/DEBIAN/control"
@@ -60,6 +61,8 @@ install -m 644 "$ROOT_DIR/packaging/deb/dashcam-transporter.service" \
 install -m 755 "$ROOT_DIR/packaging/deb/dashcam-transporter" "$PKG_ROOT/usr/bin/dashcam-transporter"
 install -m 644 "$ROOT_DIR/packaging/deb/dashcam-transporter.logrotate" \
   "$PKG_ROOT/etc/logrotate.d/dashcam-transporter"
+install -m 644 "$ROOT_DIR/packaging/deb/dashcam-transporter.rules" \
+  "$PKG_ROOT/etc/polkit-1/rules.d/50-dashcam-transporter.rules"
 
 OUTPUT_FILE="${OUTPUT_DIR}/${APP_NAME}_${VERSION}_${ARCH}.deb"
 if command -v fakeroot >/dev/null 2>&1; then

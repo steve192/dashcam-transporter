@@ -12,6 +12,8 @@ import { Wifi } from './WIFI'
 const appStart = async () => {
   preventMultipleRuns()
 
+  await waitForConfiguredSettings()
+
   console.log('App started')
 
   RaspiLED.initialize()
@@ -56,6 +58,25 @@ const appStart = async () => {
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
 appStart()
+
+async function waitForConfiguredSettings () {
+  while (true) {
+    Settings.reload()
+    const missingSettings = Settings.getMissingRequiredSettings()
+    if (missingSettings.length === 0) {
+      return
+    }
+
+    const settingsPath = Settings.getSettingsPath()
+    if (!Settings.hasSettingsFile()) {
+      console.log(`Settings file not found at ${settingsPath}`)
+    } else {
+      console.log(`Settings incomplete in ${settingsPath}`)
+      console.log(`Missing required settings: ${missingSettings.join(', ')}`)
+    }
+    await sleep(5000)
+  }
+}
 
 function preventMultipleRuns () {
   const server = http.createServer(function (req, res) {

@@ -4,10 +4,59 @@ import propertiesReader from 'properties-reader'
 
 const defaultSettingsPath = process.env.DASHCAM_TRANSPORTER_SETTINGS ?? '/etc/dashcam-transporter/settings.ini'
 const localSettingsPath = path.join(__dirname, 'settings.ini')
-const settingsPath = fs.existsSync(defaultSettingsPath) ? defaultSettingsPath : localSettingsPath
-const properties = propertiesReader(settingsPath)
+const requiredSettings = [
+  'home.ssid',
+  'home.password',
+  'dashcam.ssid',
+  'dashcam.password',
+  'dashcam.model'
+]
+
+const resolveSettingsPath = () => {
+  if (fs.existsSync(defaultSettingsPath)) {
+    return defaultSettingsPath
+  }
+  if (fs.existsSync(localSettingsPath)) {
+    return localSettingsPath
+  }
+  return defaultSettingsPath
+}
+
+const loadProperties = (settingsPath: string) => {
+  if (!fs.existsSync(settingsPath)) {
+    return propertiesReader('')
+  }
+  try {
+    return propertiesReader(settingsPath)
+  } catch {
+    return propertiesReader('')
+  }
+}
+
+let activeSettingsPath = resolveSettingsPath()
+let properties = loadProperties(activeSettingsPath)
 
 export class Settings {
+  public static reload () {
+    activeSettingsPath = resolveSettingsPath()
+    properties = loadProperties(activeSettingsPath)
+  }
+
+  public static getSettingsPath () {
+    return activeSettingsPath
+  }
+
+  public static hasSettingsFile () {
+    return fs.existsSync(activeSettingsPath)
+  }
+
+  public static getMissingRequiredSettings () {
+    return requiredSettings.filter((key) => {
+      const value = properties.getRaw(key)
+      return value == null || value.trim() === ''
+    })
+  }
+
   public static async getDashcamWifiSSID () {
     return properties.get('dashcam.ssid') as string
   }
