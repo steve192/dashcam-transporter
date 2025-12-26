@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { GlobalState } from './GlobalState'
+import { Logger } from './Logger'
 import { SMB } from './hometransfer/SMB'
 import { Nextcloud } from './hometransfer/Nextcloud'
 import { RaspiLED } from './RaspiLed'
@@ -17,14 +18,14 @@ export class HomeTransfer {
 
     if (!smbEnabled && !nextcloudEnabled) {
       GlobalState.homeTransferDone = true
-      console.log('No home transfer targets enabled, skipping transfer')
+      Logger.debug('No home transfer targets enabled, skipping transfer')
       return
     }
 
     const lockedFilesDirectory = await Settings.getDownloadDirectory() + '/locked'
     if (!fs.existsSync(lockedFilesDirectory)) {
       GlobalState.homeTransferDone = true
-      console.log('No locked files directory found, skipping transfer')
+      Logger.debug('No locked files directory found, skipping transfer')
       return
     }
     const lockedFiles = fs.readdirSync(lockedFilesDirectory).filter((file) => {
@@ -37,7 +38,7 @@ export class HomeTransfer {
     })
     if (lockedFiles.length === 0) {
       GlobalState.homeTransferDone = true
-      console.log('No locked files found, skipping transfer')
+      Logger.debug('No locked files found, skipping transfer')
       return
     }
 
@@ -47,7 +48,7 @@ export class HomeTransfer {
         await SMB.smbTransferToHome(lockedFilesDirectory, lockedFiles)
       } catch (error) {
         errors.push(error as Error)
-        console.error('SMB transfer failed', error)
+        Logger.error('SMB transfer failed', error)
       }
     }
     if (nextcloudEnabled) {
@@ -55,7 +56,7 @@ export class HomeTransfer {
         await Nextcloud.nextcloudTransferToHome(lockedFilesDirectory, lockedFiles)
       } catch (error) {
         errors.push(error as Error)
-        console.error('Nextcloud transfer failed', error)
+        Logger.error('Nextcloud transfer failed', error)
       }
     }
 
@@ -66,7 +67,7 @@ export class HomeTransfer {
     for (const file of lockedFiles) {
       const localPath = path.join(lockedFilesDirectory, file)
       if (fs.existsSync(localPath)) {
-        console.log('Deleting locally uploaded file', file)
+        Logger.debug('Deleting locally uploaded file', file)
         fs.unlinkSync(localPath)
       }
     }

@@ -38,6 +38,7 @@ This installs the latest `.deb` release, sets up a systemd service, and keeps co
 ## Logs
 - Logs are written to `/var/log/dashcam-transporter/app.log`
 - View logs with `sudo dashcam-transporter logs`
+- Configure log level in `/etc/dashcam-transporter/settings.ini` under `[logging]` (debug/info/warn/error)
 
 ## Uninstall
 - Remove the package (keep config): `sudo apt remove dashcam-transporter`

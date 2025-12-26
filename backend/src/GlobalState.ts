@@ -1,3 +1,4 @@
+import { Logger } from './Logger'
 import { RaspiLED } from './RaspiLed'
 
 export class GlobalState {
@@ -17,7 +18,7 @@ export class GlobalState {
 
   public static set homeTransferDone (value) {
     if (value) RaspiLED.operation = 'IDLE'
-    console.log('Home transfer done:', value)
+    Logger.debug('Home transfer done:', value)
     GlobalState._homeTransferDone = value
   }
 
@@ -26,7 +27,7 @@ export class GlobalState {
   }
 
   public static set dashcamTransferDone (value) {
-    console.log('Dashcam transfer done:', value)
+    Logger.debug('Dashcam transfer done:', value)
     if (value) RaspiLED.operation = 'IDLE'
     GlobalState._dashcamTransferDone = value
   }

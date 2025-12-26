@@ -111,4 +111,13 @@ export class Settings {
       storagePath: properties.get('nextcloud.storagepath') as string
     }
   }
+
+  public static async getLogLevel () {
+    const envLevel = process.env.DASHCAM_TRANSPORTER_LOG_LEVEL
+    if (envLevel != null && envLevel.trim() !== '') {
+      return envLevel
+    }
+    const level = properties.get('logging.level') as string
+    return level != null && level.trim() !== '' ? level : 'info'
+  }
 }

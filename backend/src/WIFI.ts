@@ -1,7 +1,11 @@
 import wifi from 'node-wifi'
+import { Logger } from './Logger'
 import { Settings } from './Settings'
 
 export class Wifi {
+  private static lastDashcamConnected: boolean | null = null
+  private static lastHomeConnected: boolean | null = null
+
   public static async enableWifi () {
     // Initialize wifi module
     wifi.init({
@@ -15,7 +19,7 @@ export class Wifi {
       password: await Settings.getDashcamWifiPassword()
     }
 
-    await Wifi.tryToConnectoToWifi(wifiSettings)
+    await Wifi.tryToConnectoToWifi('dashcam', wifiSettings)
   }
 
   public static async tryToConnectToHomeWifi () {
@@ -24,59 +28,86 @@ export class Wifi {
       password: await Settings.getHomeWifiPassword()
     }
 
-    await Wifi.tryToConnectoToWifi(wifiSettings)
+    await Wifi.tryToConnectoToWifi('home', wifiSettings)
   }
 
   public static async disconnectWifi () {
-    console.log('Disconnecting wifi')
+    Logger.debug('Disconnecting wifi')
     await wifi.disconnect()
   }
 
   public static async isConnectedToDashcamWifi () {
-    console.log('Checking if wifi is connected')
     const dashcamSSID = await Settings.getDashcamWifiSSID()
     try {
       const currentConnections = await wifi.getCurrentConnections()
       if (currentConnections.find(connection => connection.ssid === dashcamSSID) != null) {
-        console.log('Connected to wifi ' + dashcamSSID)
+        Wifi.logConnectionChange('dashcam', dashcamSSID, true)
         return true
       } else {
-        console.log('Not connected to ' + dashcamSSID)
+        Wifi.logConnectionChange('dashcam', dashcamSSID, false)
         return false
       }
     } catch (e) {
-      console.error('Error getting current wifi connections', e)
       throw e
     }
   }
 
   public static async isConnectedToHomeWifi () {
-    console.log('Checking if wifi is connected')
     const homeSSID = await Settings.getHomeWifiSSID()
     try {
       const currentConnections = await wifi.getCurrentConnections()
       if (currentConnections.find(connection => connection.ssid === homeSSID) != null) {
-        console.log('Connected to wifi ' + homeSSID)
+        Wifi.logConnectionChange('home', homeSSID, true)
         return true
       } else {
-        console.log('Not connected to ' + homeSSID)
+        Wifi.logConnectionChange('home', homeSSID, false)
         return false
       }
     } catch (e) {
-      console.error('Error getting current wifi connections', e)
       throw e
     }
   }
 
-  private static async tryToConnectoToWifi (wifiSettings: { ssid: string, password: string }) {
-    console.log('Sending wifi request')
+  private static async tryToConnectoToWifi (type: 'dashcam' | 'home', wifiSettings: { ssid: string, password: string }) {
+    Logger.debug('Sending wifi request', wifiSettings.ssid)
     try {
       await wifi.connect(wifiSettings)
     } catch (e) {
-      console.log('Could not connect to wifi ' + wifiSettings.ssid, e)
+      const message = Wifi.getErrorMessage(e)
+      if (message.includes('No network with SSID') || message.includes('not found')) {
+        Logger.debug(`Could not connect to wifi ${wifiSettings.ssid}: ${message}`)
+      } else {
+        Logger.warn(`Could not connect to wifi ${wifiSettings.ssid}: ${message}`)
+      }
       throw e
     }
+    Wifi.logConnectionChange(type, wifiSettings.ssid, true)
+  }
 
-    console.log('Connected to wifi', wifiSettings.ssid)
+  private static logConnectionChange (type: 'dashcam' | 'home', ssid: string, isConnected: boolean) {
+    if (type === 'dashcam') {
+      if (Wifi.lastDashcamConnected === isConnected) {
+        return
+      }
+      Wifi.lastDashcamConnected = isConnected
+    } else {
+      if (Wifi.lastHomeConnected === isConnected) {
+        return
+      }
+      Wifi.lastHomeConnected = isConnected
+    }
+
+    if (isConnected) {
+      Logger.info(`Connected to wifi ${ssid}`)
+    } else {
+      Logger.info(`Disconnected from wifi ${ssid}`)
+    }
+  }
+
+  private static getErrorMessage (error: unknown) {
+    if (error instanceof Error && error.message != null) {
+      return error.message
+    }
+    return String(error)
   }
 }

@@ -4,30 +4,18 @@ import http from 'http'
 import { DashcamDownloader } from './DashcamDownloader'
 import { GlobalState } from './GlobalState'
 import { HomeTransfer } from './HomeTransfer'
+import { Logger } from './Logger'
 import { RaspiLED } from './RaspiLed'
 import { Settings } from './Settings'
 import { sleep } from './utils'
 import { Wifi } from './WIFI'
-
-const originalLog = console.log.bind(console)
-const originalInfo = console.info.bind(console)
-const originalWarn = console.warn.bind(console)
-const originalError = console.error.bind(console)
-const logWithTimestamp = (writer: (...args: any[]) => void) => {
-  return (...args: any[]) => { writer(`[${new Date().toISOString()}]`, ...args); }
-}
-
-console.log = logWithTimestamp(originalLog)
-console.info = logWithTimestamp(originalInfo)
-console.warn = logWithTimestamp(originalWarn)
-console.error = logWithTimestamp(originalError)
 
 const appStart = async () => {
   preventMultipleRuns()
 
   await waitForConfiguredSettings()
 
-  console.log('App started')
+  Logger.info('App started')
 
   RaspiLED.initialize()
 
@@ -45,26 +33,26 @@ const appStart = async () => {
       } else if (await Wifi.isConnectedToHomeWifi() && !GlobalState.homeTransferDone) {
         await HomeTransfer.transferToHome()
       } else {
-        try {
-          if (!GlobalState.dashcamTransferDone) {
+        if (!GlobalState.dashcamTransferDone) {
+          try {
             await Wifi.tryToConnectToDashcamWifi()
             continue
+          } catch {
+            // Ignore and attempt next option.
           }
-        } catch {
-          console.log('Could not connect to dashcam wifi')
         }
 
-        try {
-          if (!GlobalState.homeTransferDone) {
+        if (!GlobalState.homeTransferDone) {
+          try {
             await Wifi.tryToConnectToHomeWifi()
             continue
+          } catch {
+            // Ignore and keep looping.
           }
-        } catch {
-          console.log('Could not connect to home wifi')
         }
       }
     } catch (error) {
-      console.error('Error in main loop', error)
+      Logger.error('Error in main loop', error)
     }
   }
 }
@@ -75,6 +63,7 @@ appStart()
 async function waitForConfiguredSettings () {
   while (true) {
     Settings.reload()
+    Logger.setLevel(await Settings.getLogLevel())
     const missingSettings = Settings.getMissingRequiredSettings()
     if (missingSettings.length === 0) {
       return
@@ -82,10 +71,10 @@ async function waitForConfiguredSettings () {
 
     const settingsPath = Settings.getSettingsPath()
     if (!Settings.hasSettingsFile()) {
-      console.log(`Settings file not found at ${settingsPath}`)
+      Logger.warn(`Settings file not found at ${settingsPath}`)
     } else {
-      console.log(`Settings incomplete in ${settingsPath}`)
-      console.log(`Missing required settings: ${missingSettings.join(', ')}`)
+      Logger.warn(`Settings incomplete in ${settingsPath}`)
+      Logger.warn(`Missing required settings: ${missingSettings.join(', ')}`)
     }
     await sleep(5000)
   }
@@ -98,7 +87,7 @@ function preventMultipleRuns () {
   server.unref()
 
   server.on('error', function (e) {
-    console.log("Application already running - can't run more than one instance")
+    Logger.error("Application already running - can't run more than one instance")
     process.exit(1)
   })
 
