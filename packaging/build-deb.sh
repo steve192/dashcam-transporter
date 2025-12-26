@@ -50,6 +50,7 @@ install -m 644 "$ROOT_DIR/packaging/deb/conffiles" "$PKG_ROOT/DEBIAN/conffiles"
 cp -a "$ROOT_DIR/backend/dist/." "$PKG_ROOT/opt/${APP_NAME}/"
 cp -a "$ROOT_DIR/backend/node_modules" "$PKG_ROOT/opt/${APP_NAME}/"
 cp -a "$ROOT_DIR/backend/package.json" "$PKG_ROOT/opt/${APP_NAME}/"
+rm -f "$PKG_ROOT/opt/${APP_NAME}/settings.ini"
 
 if command -v npm >/dev/null 2>&1; then
   npm prune --omit=dev --prefix "$PKG_ROOT/opt/${APP_NAME}" >/dev/null 2>&1 || true
