@@ -9,6 +9,11 @@ export class RaspiLED {
   private static ledStatus = false
   private static ledNames: string[] = []
   private static ledWriteDisabled = new Set<string>()
+  private static readonly fastBlinkMs = 200
+  private static readonly slowBlinkMs = 500
+  private static readonly idleBlinkMs = 150
+  private static readonly idlePauseMs = 1200
+  private static idlePhase = 0
 
   private static isPiCached: undefined | boolean = undefined
 
@@ -82,10 +87,21 @@ export class RaspiLED {
   }
 
   private static updateStatus () {
-    if (RaspiLED.operation === 'IDLE') {
+    let interval = RaspiLED.idlePauseMs
+
+    if (RaspiLED.operation === 'DASHCAMTRANSFER') {
       RaspiLED.ledStatus = !RaspiLED.ledStatus
-    } else if (RaspiLED.operation === 'DASHCAMTRANSFER' || RaspiLED.operation === 'HOMETRANSFER') {
-      RaspiLED.ledStatus = true
+      interval = RaspiLED.fastBlinkMs
+      RaspiLED.idlePhase = 0
+    } else if (RaspiLED.operation === 'HOMETRANSFER') {
+      RaspiLED.ledStatus = !RaspiLED.ledStatus
+      interval = RaspiLED.slowBlinkMs
+      RaspiLED.idlePhase = 0
+    } else {
+      const phase = RaspiLED.idlePhase
+      RaspiLED.ledStatus = phase === 0 || phase === 2
+      interval = phase === 4 ? RaspiLED.idlePauseMs : RaspiLED.idleBlinkMs
+      RaspiLED.idlePhase = phase >= 4 ? 0 : phase + 1
     }
 
     if (RaspiLED.isRaspberryPi()) {
@@ -102,7 +118,7 @@ export class RaspiLED {
         }
       }
     }
-    setTimeout(() => RaspiLED.updateStatus(), 500)
+    setTimeout(() => RaspiLED.updateStatus(), interval)
   }
 
   public static get operation () {
@@ -110,6 +126,10 @@ export class RaspiLED {
   }
 
   public static set operation (value) {
+    if (RaspiLED._operation !== value && value === 'IDLE') {
+      RaspiLED.idlePhase = 0
+      RaspiLED.ledStatus = false
+    }
     RaspiLED._operation = value
   }
 

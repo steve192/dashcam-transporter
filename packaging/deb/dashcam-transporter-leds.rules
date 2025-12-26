@@ -1,4 +1,4 @@
-SUBSYSTEM=="leds", KERNEL=="led0", MODE="0660", GROUP="dashcam-transporter"
-SUBSYSTEM=="leds", KERNEL=="led1", MODE="0660", GROUP="dashcam-transporter"
-SUBSYSTEM=="leds", KERNEL=="ACT", MODE="0660", GROUP="dashcam-transporter"
-SUBSYSTEM=="leds", KERNEL=="PWR", MODE="0660", GROUP="dashcam-transporter"
+SUBSYSTEM=="leds", KERNEL=="led0", MODE="0660", GROUP="dashcam-transporter", RUN+="/bin/chgrp dashcam-transporter /sys/class/leds/%k/brightness /sys/class/leds/%k/trigger", RUN+="/bin/chmod 0660 /sys/class/leds/%k/brightness /sys/class/leds/%k/trigger"
+SUBSYSTEM=="leds", KERNEL=="led1", MODE="0660", GROUP="dashcam-transporter", RUN+="/bin/chgrp dashcam-transporter /sys/class/leds/%k/brightness /sys/class/leds/%k/trigger", RUN+="/bin/chmod 0660 /sys/class/leds/%k/brightness /sys/class/leds/%k/trigger"
+SUBSYSTEM=="leds", KERNEL=="ACT", MODE="0660", GROUP="dashcam-transporter", RUN+="/bin/chgrp dashcam-transporter /sys/class/leds/%k/brightness /sys/class/leds/%k/trigger", RUN+="/bin/chmod 0660 /sys/class/leds/%k/brightness /sys/class/leds/%k/trigger"
+SUBSYSTEM=="leds", KERNEL=="PWR", MODE="0660", GROUP="dashcam-transporter", RUN+="/bin/chgrp dashcam-transporter /sys/class/leds/%k/brightness /sys/class/leds/%k/trigger", RUN+="/bin/chmod 0660 /sys/class/leds/%k/brightness /sys/class/leds/%k/trigger"
