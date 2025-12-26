@@ -10,10 +10,14 @@ Application running on a raspberry pi (or other debian based platforms), to tran
 
 
 # Currently supported dashcams
-- ✅ Viofo A119 Mini (Probaply other viofo as well)
+- ✅ Viofo Dashcams 
+  - ✅ Viofo A119 Mini
+  - ✅ Viofo A229 Pro
+  - Other Viofo Dashcams (untested)
 
 # Currently supported target storages
 - ✅ Samba (SMB) Windows Share
+- ✅ Nextcloud WebDAV
 
 
 # Installation
