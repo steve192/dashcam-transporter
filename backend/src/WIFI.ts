@@ -69,6 +69,12 @@ export class Wifi {
   }
 
   private static async tryToConnectoToWifi (type: 'dashcam' | 'home', wifiSettings: { ssid: string, password: string }) {
+    const networkFound = await Wifi.scanForNetwork(wifiSettings.ssid)
+    if (!networkFound) {
+      Logger.debug(`WiFi SSID not found in scan: ${wifiSettings.ssid}`)
+      throw new Error(`WiFi SSID not found: ${wifiSettings.ssid}`)
+    }
+
     Logger.debug('Sending wifi request', wifiSettings.ssid)
     try {
       await wifi.connect(wifiSettings)
@@ -82,6 +88,16 @@ export class Wifi {
       throw e
     }
     Wifi.logConnectionChange(type, wifiSettings.ssid, true)
+  }
+
+  private static async scanForNetwork (ssid: string) {
+    try {
+      const networks = await wifi.scan()
+      return networks.some((network) => network.ssid === ssid)
+    } catch (error) {
+      Logger.warn('WiFi scan failed', error)
+      return true
+    }
   }
 
   private static logConnectionChange (type: 'dashcam' | 'home', ssid: string, isConnected: boolean) {

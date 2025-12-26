@@ -34,6 +34,7 @@ const mockWifi = {
   lastConnect: null,
   disconnected: false,
   currentConnections: [],
+  scanResults: [],
   init: function (opts) {
     this.lastInit = opts
   },
@@ -45,6 +46,9 @@ const mockWifi = {
   },
   getCurrentConnections: async function () {
     return this.currentConnections
+  },
+  scan: async function () {
+    return this.scanResults
   }
 }
 
@@ -166,6 +170,10 @@ const resetMocks = () => {
   mockWifi.lastConnect = null
   mockWifi.disconnected = false
   mockWifi.currentConnections = []
+  mockWifi.scanResults = [
+    { ssid: 'dashcam-ssid' },
+    { ssid: 'home-ssid' }
+  ]
   mockAxios.deletes = []
   mockAxios.downloads = []
   mockAxios.failDownloads = false
