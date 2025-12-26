@@ -10,10 +10,14 @@ Application running on a raspberry pi (or other debian based platforms), to tran
 
 
 # Currently supported dashcams
-- ✅ Viofo A119 Mini (Probaply other viofo as well)
+- ✅ Viofo Dashcams 
+  - ✅ Viofo A119 Mini
+  - ✅ Viofo A229 Pro
+  - Other Viofo Dashcams (untested)
 
 # Currently supported target storages
 - ✅ Samba (SMB) Windows Share
+- ✅ Nextcloud WebDAV
 
 
 # Installation
@@ -49,6 +53,17 @@ This installs the latest `.deb` release, sets up a systemd service, and keeps co
 - The installer enables NetworkManager and disables `dhcpcd` (required for node-wifi).
 - To skip this step, create `/etc/dashcam-transporter/skip-networkmanager-setup` before installation.
 
+# Test a branch on Raspberry Pi 
+This runs the app from source on the Pi for development.
+- If you installed the stable version: SSH into the Pi and stop the service so only one instance runs: `sudo systemctl stop dashcam-transporter`
+- Clone the repo: `git clone https://github.com/steve192/dashcam-transporter.git`
+- Fetch and checkout the branch: `git fetch origin && git checkout <branch>`
+- Enter the directory: `cd dashcam-transporter`
+- Install dependencies and build: `cd backend && npm ci && npm run build`
+- Run the branch build: `node dist/app.js`
+- When done, stop the process and restart the service: `sudo systemctl start dashcam-transporter`
+
+Tip: Use a separate settings file by exporting `DASHCAM_TRANSPORTER_SETTINGS=/etc/dashcam-transporter/settings.test.ini` before running `node dist/app.js`.
 
 # Meaning of leds
 The script controls the raspberrys leds

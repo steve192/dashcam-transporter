@@ -156,7 +156,7 @@ const { VIOFO } = require('../dist/dashcams/VIOFO')
 const { GlobalState } = require('../dist/GlobalState')
 const { RaspiLED } = require('../dist/RaspiLed')
 const { enoughSpaceAvailable } = require('../dist/utils')
-const { SMB } = require('../dist/hometransfert/SMB')
+const { SMB } = require('../dist/hometransfer/SMB')
 
 const tests = []
 const test = (name, fn) => tests.push({ name, fn })
@@ -225,18 +225,27 @@ test('DashcamDownloader dispatches to VIOFO', async () => {
 })
 
 test('HomeTransfer triggers SMB transfer', async () => {
+  const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'home-transfer-'))
+  const lockedDir = path.join(downloadDir, 'locked')
+  fs.mkdirSync(lockedDir, { recursive: true })
+  fs.writeFileSync(path.join(lockedDir, 'video.mp4'), 'data')
+
+  const originalDownloadDir = Settings.getDownloadDirectory
   const originalTransfer = SMB.smbTransferToHome
   let called = 0
 
+  Settings.getDownloadDirectory = async () => downloadDir
   SMB.smbTransferToHome = async () => { called += 1 }
   GlobalState.dashcamTransferDone = true
 
   await HomeTransfer.transferToHome()
 
   assert.strictEqual(called, 1)
-  assert.strictEqual(RaspiLED.operation, 'HOMETRANSFER')
+  assert.strictEqual(RaspiLED.operation, 'IDLE')
   assert.strictEqual(GlobalState.dashcamTransferDone, false)
+  assert.strictEqual(fs.existsSync(path.join(lockedDir, 'video.mp4')), false)
 
+  Settings.getDownloadDirectory = originalDownloadDir
   SMB.smbTransferToHome = originalTransfer
 })
 
@@ -281,7 +290,7 @@ test('VIOFO propagates download errors', async () => {
   Settings.getDownloadDirectory = originalDownloadDir
 })
 
-test('SMB transfers and removes local files', async () => {
+test('SMB transfers and keeps local files', async () => {
   const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'smb-'))
   const lockedDir = path.join(downloadDir, 'locked')
   fs.mkdirSync(lockedDir, { recursive: true })
@@ -289,10 +298,8 @@ test('SMB transfers and removes local files', async () => {
   const filePath = path.join(lockedDir, 'video.mp4')
   fs.writeFileSync(filePath, 'data')
 
-  const originalDownloadDir = Settings.getDownloadDirectory
   const originalSmbSettings = Settings.getSMBSettings
 
-  Settings.getDownloadDirectory = async () => downloadDir
   Settings.getSMBSettings = async () => ({
     enabled: true,
     host: 'server.local',
@@ -302,25 +309,23 @@ test('SMB transfers and removes local files', async () => {
     storagePath: '/share/dashcam'
   })
 
-  await SMB.smbTransferToHome()
+  await SMB.smbTransferToHome(lockedDir, ['video.mp4'])
 
   const instance = SambaClientMock.lastInstance
   assert.ok(instance)
   assert.strictEqual(instance.sendCalls.length, 1)
   assert.strictEqual(instance.sendCalls[0].destination, 'share\\dashcam\\locked\\video.mp4')
-  assert.strictEqual(fs.existsSync(filePath), false)
+  assert.strictEqual(fs.existsSync(filePath), true)
 
-  Settings.getDownloadDirectory = originalDownloadDir
   Settings.getSMBSettings = originalSmbSettings
 })
 
-test('SMB skips transfer when locked directory is missing', async () => {
+test('SMB skips transfer when no files are provided', async () => {
   const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'smb-empty-'))
+  const lockedDir = path.join(downloadDir, 'locked')
 
-  const originalDownloadDir = Settings.getDownloadDirectory
   const originalSmbSettings = Settings.getSMBSettings
 
-  Settings.getDownloadDirectory = async () => downloadDir
   Settings.getSMBSettings = async () => ({
     enabled: true,
     host: 'server.local',
@@ -330,13 +335,10 @@ test('SMB skips transfer when locked directory is missing', async () => {
     storagePath: '/share/dashcam'
   })
 
-  GlobalState.homeTransferDone = false
-  await SMB.smbTransferToHome()
+  await SMB.smbTransferToHome(lockedDir, [])
 
-  assert.strictEqual(GlobalState.homeTransferDone, true)
   assert.strictEqual(SambaClientMock.lastInstance, null)
 
-  Settings.getDownloadDirectory = originalDownloadDir
   Settings.getSMBSettings = originalSmbSettings
 })
 
