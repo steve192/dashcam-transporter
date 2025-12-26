@@ -2,6 +2,7 @@ const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const { PassThrough } = require('stream')
 const Module = require('module')
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dashcam-transporter-'))
@@ -59,7 +60,7 @@ const mockAxios = {
         '    <File>',
         '      <NAME>LOCK1.MP4</NAME>',
         '      <FPATH>A:\\LOCKED\\LOCK1.MP4</FPATH>',
-        '      <SIZE>1</SIZE>',
+        '      <SIZE>4</SIZE>',
         '      <TIMECODE>0</TIMECODE>',
         '      <TIME>0</TIME>',
         '      <ATTR>33</ATTR>',
@@ -69,7 +70,7 @@ const mockAxios = {
         '    <File>',
         '      <NAME>UNLOCKED.MP4</NAME>',
         '      <FPATH>A:\\LOCKED\\UNLOCKED.MP4</FPATH>',
-        '      <SIZE>1</SIZE>',
+        '      <SIZE>4</SIZE>',
         '      <TIMECODE>0</TIMECODE>',
         '      <TIME>0</TIME>',
         '      <ATTR>32</ATTR>',
@@ -85,14 +86,10 @@ const mockAxios = {
         throw new Error('Download failed')
       }
       this.downloads.push(url)
+      const stream = new PassThrough()
+      stream.end('data')
       return {
-        data: {
-          on: () => {},
-          pipe: (writer) => {
-            writer.end('data')
-            return writer
-          }
-        }
+        data: stream
       }
     }
 
@@ -108,19 +105,22 @@ class SambaClientMock {
     this.opts = opts
     this.mkdirCalls = []
     this.sendCalls = []
+    this.existingPaths = new Set()
     SambaClientMock.lastInstance = this
   }
 
-  async fileExists () {
-    return false
+  async fileExists (pathToCheck) {
+    return this.existingPaths.has(pathToCheck)
   }
 
   async mkdir (pathToMake) {
     this.mkdirCalls.push(pathToMake)
+    this.existingPaths.add(pathToMake)
   }
 
   async sendFile (source, destination) {
     this.sendCalls.push({ source, destination })
+    this.existingPaths.add(destination)
   }
 }
 
@@ -156,7 +156,7 @@ const { VIOFO } = require('../dist/dashcams/VIOFO')
 const { GlobalState } = require('../dist/GlobalState')
 const { RaspiLED } = require('../dist/RaspiLed')
 const { enoughSpaceAvailable } = require('../dist/utils')
-const { SMB } = require('../dist/hometransfer/SMB')
+const { SMBTransferTarget } = require('../dist/hometransfer/SMB')
 
 const tests = []
 const test = (name, fn) => tests.push({ name, fn })
@@ -206,36 +206,55 @@ test('Wifi connection detection works', async () => {
   assert.strictEqual(await Wifi.isConnectedToDashcamWifi(), false)
 })
 
-test('DashcamDownloader dispatches to VIOFO', async () => {
-  const originalModel = Settings.getDashcamModel
-  const originalDownload = VIOFO.downloadLockedVideosFromDashcam
-  let called = 0
+test('DashcamDownloader downloads files and deletes remote', async () => {
+  const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'dashcam-'))
+  const lockedDir = path.join(downloadDir, 'locked')
+  fs.mkdirSync(lockedDir, { recursive: true })
 
-  Settings.getDashcamModel = async () => 'UNKNOWN'
-  VIOFO.downloadLockedVideosFromDashcam = async () => { called += 1 }
+  const originalDownloadDir = Settings.getDownloadDirectory
+  const originalCreateSource = DashcamDownloader.createSource
+  const deleted = []
 
-  RaspiLED.operation = 'IDLE'
+  Settings.getDownloadDirectory = async () => downloadDir
+  DashcamDownloader.createSource = async () => ({
+    name: 'mock',
+    listLockedFiles: async () => ([{ name: 'LOCK1.MP4', remotePath: 'http://dashcam/LOCK1.MP4', size: 4 }]),
+    createDownloadStream: async () => {
+      const stream = new PassThrough()
+      stream.end('data')
+      return stream
+    },
+    deleteRemoteFile: async (file) => { deleted.push(file.remotePath) }
+  })
+
+  mockDiskusage.free = 1024 * 1024 * 1024
   await DashcamDownloader.downloadLockedVideosFromDashcam()
 
-  assert.strictEqual(called, 1)
-  assert.strictEqual(RaspiLED.operation, 'DASHCAMTRANSFER')
+  const downloadedPath = path.join(lockedDir, 'LOCK1.MP4')
+  assert.strictEqual(fs.existsSync(downloadedPath), true)
+  assert.strictEqual(fs.existsSync(downloadedPath + '.part'), false)
+  assert.strictEqual(deleted.length, 1)
+  assert.strictEqual(RaspiLED.operation, 'IDLE')
 
-  Settings.getDashcamModel = originalModel
-  VIOFO.downloadLockedVideosFromDashcam = originalDownload
+  Settings.getDownloadDirectory = originalDownloadDir
+  DashcamDownloader.createSource = originalCreateSource
 })
 
-test('HomeTransfer triggers SMB transfer', async () => {
+test('HomeTransfer uploads files and deletes them locally', async () => {
   const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'home-transfer-'))
   const lockedDir = path.join(downloadDir, 'locked')
   fs.mkdirSync(lockedDir, { recursive: true })
   fs.writeFileSync(path.join(lockedDir, 'video.mp4'), 'data')
 
   const originalDownloadDir = Settings.getDownloadDirectory
-  const originalTransfer = SMB.smbTransferToHome
+  const originalCreateTargets = HomeTransfer.createTargets
   let called = 0
 
   Settings.getDownloadDirectory = async () => downloadDir
-  SMB.smbTransferToHome = async () => { called += 1 }
+  HomeTransfer.createTargets = async () => ([{
+    name: 'mock',
+    upload: async () => { called += 1 }
+  }])
   GlobalState.dashcamTransferDone = true
 
   await HomeTransfer.transferToHome()
@@ -246,51 +265,47 @@ test('HomeTransfer triggers SMB transfer', async () => {
   assert.strictEqual(fs.existsSync(path.join(lockedDir, 'video.mp4')), false)
 
   Settings.getDownloadDirectory = originalDownloadDir
-  SMB.smbTransferToHome = originalTransfer
+  HomeTransfer.createTargets = originalCreateTargets
 })
 
-test('VIOFO downloads locked files and deletes remote', async () => {
-  const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'viofo-'))
-  fs.mkdirSync(path.join(downloadDir, 'locked'), { recursive: true })
-
-  const originalDownloadDir = Settings.getDownloadDirectory
-  Settings.getDownloadDirectory = async () => downloadDir
-
-  mockDiskusage.free = 1024 * 1024 * 1024
-  await VIOFO.downloadLockedVideosFromDashcam()
-
-  const downloadedPath = path.join(downloadDir, 'locked', 'LOCK1.MP4')
-  assert.strictEqual(fs.existsSync(downloadedPath), true)
-  assert.strictEqual(mockAxios.deletes.length, 1)
-  assert.strictEqual(mockAxios.downloads.length, 1)
-  assert.strictEqual(mockAxios.downloads[0].includes('\\'), false)
-  assert.strictEqual(mockAxios.downloads[0].includes('/LOCKED/LOCK1.MP4'), true)
-
-  Settings.getDownloadDirectory = originalDownloadDir
+test('VIOFO lists locked files', async () => {
+  const viofo = new VIOFO()
+  const files = await viofo.listLockedFiles()
+  assert.strictEqual(files.length, 1)
+  assert.strictEqual(files[0].name, 'LOCK1.MP4')
+  assert.strictEqual(files[0].size, 4)
+  assert.strictEqual(files[0].remotePath.includes('/LOCKED/LOCK1.MP4'), true)
 })
 
-test('VIOFO propagates download errors', async () => {
+test('DashcamDownloader propagates download errors', async () => {
   const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'viofo-fail-'))
   fs.mkdirSync(path.join(downloadDir, 'locked'), { recursive: true })
 
   const originalDownloadDir = Settings.getDownloadDirectory
+  const originalCreateSource = DashcamDownloader.createSource
+
   Settings.getDownloadDirectory = async () => downloadDir
+  DashcamDownloader.createSource = async () => ({
+    name: 'mock',
+    listLockedFiles: async () => ([{ name: 'LOCK1.MP4', remotePath: 'http://dashcam/LOCK1.MP4', size: 4 }]),
+    createDownloadStream: async () => { throw new Error('Download failed') },
+    deleteRemoteFile: async () => {}
+  })
 
   mockDiskusage.free = 1024 * 1024 * 1024
-  mockAxios.failDownloads = true
-
   let threw = false
   try {
-    await VIOFO.downloadLockedVideosFromDashcam()
+    await DashcamDownloader.downloadLockedVideosFromDashcam()
   } catch (err) {
     threw = true
   }
   assert.strictEqual(threw, true)
 
   Settings.getDownloadDirectory = originalDownloadDir
+  DashcamDownloader.createSource = originalCreateSource
 })
 
-test('SMB transfers and keeps local files', async () => {
+test('SMB uploads and verifies remote file', async () => {
   const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'smb-'))
   const lockedDir = path.join(downloadDir, 'locked')
   fs.mkdirSync(lockedDir, { recursive: true })
@@ -298,9 +313,7 @@ test('SMB transfers and keeps local files', async () => {
   const filePath = path.join(lockedDir, 'video.mp4')
   fs.writeFileSync(filePath, 'data')
 
-  const originalSmbSettings = Settings.getSMBSettings
-
-  Settings.getSMBSettings = async () => ({
+  const target = new SMBTransferTarget({
     enabled: true,
     host: 'server.local',
     share: 'dashcam',
@@ -309,37 +322,13 @@ test('SMB transfers and keeps local files', async () => {
     storagePath: '/share/dashcam'
   })
 
-  await SMB.smbTransferToHome(lockedDir, ['video.mp4'])
+  await target.upload({ name: 'video.mp4', path: filePath, size: 4 })
 
   const instance = SambaClientMock.lastInstance
   assert.ok(instance)
   assert.strictEqual(instance.sendCalls.length, 1)
   assert.strictEqual(instance.sendCalls[0].destination, 'share\\dashcam\\locked\\video.mp4')
   assert.strictEqual(fs.existsSync(filePath), true)
-
-  Settings.getSMBSettings = originalSmbSettings
-})
-
-test('SMB skips transfer when no files are provided', async () => {
-  const downloadDir = fs.mkdtempSync(path.join(tmpDir, 'smb-empty-'))
-  const lockedDir = path.join(downloadDir, 'locked')
-
-  const originalSmbSettings = Settings.getSMBSettings
-
-  Settings.getSMBSettings = async () => ({
-    enabled: true,
-    host: 'server.local',
-    share: 'dashcam',
-    username: 'user',
-    password: 'pass',
-    storagePath: '/share/dashcam'
-  })
-
-  await SMB.smbTransferToHome(lockedDir, [])
-
-  assert.strictEqual(SambaClientMock.lastInstance, null)
-
-  Settings.getSMBSettings = originalSmbSettings
 })
 
 async function run() {

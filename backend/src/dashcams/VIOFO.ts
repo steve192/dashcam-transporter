@@ -1,11 +1,7 @@
 import axios from 'axios'
 import { XMLParser } from 'fast-xml-parser'
-import Fs from 'fs'
-import Path from 'path'
-import { GlobalState } from '../GlobalState'
 import { Logger } from '../Logger'
-import { Settings } from '../Settings'
-import { enoughSpaceAvailable } from '../utils'
+import { type DashcamFile, type DashcamSource } from './DashcamSource'
 
 const protocolAndIp = 'http://192.168.1.254'
 
@@ -22,62 +18,53 @@ interface FileListResponse {
   LIST: { ALLFile: Array<{ File: File }> }
 }
 
-export class VIOFO {
+export class VIOFO implements DashcamSource {
+  public name = 'VIOFO'
+
   // attr 32 = movie + parking
   // attr 33 = parking ro
-  public static async downloadLockedVideosFromDashcam () {
-    const downloadDirectory = await Settings.getDownloadDirectory()
+  public async listLockedFiles (): Promise<DashcamFile[]> {
     const response = await axios.get(protocolAndIp + '/?custom=1&cmd=3015')
-
     const parser = new XMLParser()
     const parsedResponse: FileListResponse = parser.parse(await response.data)
+    const results: DashcamFile[] = []
+    const allFiles = parsedResponse?.LIST?.ALLFile
+    if (allFiles == null) {
+      return results
+    }
+    const fileLists = Array.isArray(allFiles)
+      ? allFiles
+      : [allFiles]
 
-    for (const file of parsedResponse.LIST.ALLFile) {
+    for (const file of fileLists) {
+      if (file.File.ATTR !== 33) {
+        Logger.debug('Video is not locked, ignoring', file.File.FPATH)
+        continue
+      }
       let downloadUrl = file.File.FPATH
       downloadUrl = downloadUrl.replace(/^A:/, '')
       downloadUrl = downloadUrl.replace(/\\/g, '/')
       downloadUrl = protocolAndIp + downloadUrl
-
-      switch (file.File.ATTR) {
-        case 33:
-          await VIOFO.downloadVideo(file, downloadDirectory, downloadUrl)
-          await VIOFO.deleteVideo(downloadUrl)
-          break
-        case 32:
-          Logger.debug('Video is not locked, ignoring', file.File.FPATH)
-          break
-      }
+      results.push({
+        name: file.File.NAME,
+        remotePath: downloadUrl,
+        size: Number(file.File.SIZE)
+      })
     }
 
-    GlobalState.dashcamTransferDone = true
+    return results
   }
 
-  private static async deleteVideo (downloadUrl: string) {
-    Logger.debug('Deleting video', downloadUrl)
-    await axios.delete(downloadUrl)
-  }
-
-  private static async downloadVideo (file: { File: File }, downloadDirectory: string, downloadUrl: string) {
-    if (!await enoughSpaceAvailable(file.File.SIZE)) {
-      Logger.warn('Not enough space available.')
-      GlobalState.dashcamTransferDone = true
-      throw new Error('Not enough space available')
+  public async createDownloadStream (file: DashcamFile): Promise<NodeJS.ReadableStream> {
+    const response = await axios.get(file.remotePath, { responseType: 'stream' })
+    if (response.data == null || typeof response.data.pipe !== 'function') {
+      throw new Error('Dashcam download did not return a stream')
     }
-    return await new Promise((resolve, reject) => {
-      Logger.info('Downloading locked video', file.File.FPATH)
+    return response.data as NodeJS.ReadableStream
+  }
 
-      const path = Path.resolve(downloadDirectory, 'locked', file.File.NAME)
-      const writer = Fs.createWriteStream(path)
-
-      axios.get(downloadUrl, { responseType: 'stream' })
-        .then(response => {
-          response.data.on('error', reject)
-          response.data.pipe(writer)
-        })
-        .catch(reject)
-
-      writer.on('finish', resolve)
-      writer.on('error', reject)
-    })
+  public async deleteRemoteFile (file: DashcamFile): Promise<void> {
+    Logger.debug('Deleting video', file.remotePath)
+    await axios.delete(file.remotePath)
   }
 }
