@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import propertiesReader from 'properties-reader'
 
-const defaultSettingsPath = process.env.DASHCAM_TRANSPORTER_SETTINGS ?? '/etc/dashcam-transporter/settings.ini'
+const defaultSettingsPath = '/etc/dashcam-transporter/settings.ini'
 const localSettingsPath = path.join(__dirname, 'settings.ini')
 const requiredSettings = [
   'home.ssid',
@@ -13,6 +13,10 @@ const requiredSettings = [
 ]
 
 const resolveSettingsPath = () => {
+  const envSettingsPath = process.env.DASHCAM_TRANSPORTER_SETTINGS
+  if (envSettingsPath != null && envSettingsPath.trim() !== '') {
+    return envSettingsPath
+  }
   if (fs.existsSync(localSettingsPath)) {
     return localSettingsPath
   }
