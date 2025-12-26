@@ -3,6 +3,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { PassThrough } = require('stream')
+const { promisify } = require('util')
 const Module = require('module')
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dashcam-transporter-'))
@@ -240,6 +241,20 @@ const mockModules = {
   axios: { __esModule: true, default: mockAxios },
   'samba-client': { __esModule: true, default: SambaClientMock },
   diskusage: { __esModule: true, default: mockDiskusage }
+}
+
+mockModules.child_process.execFile[promisify.custom] = function (cmd, args, options) {
+  return new Promise((resolve, reject) => {
+    mockModules.child_process.execFile(cmd, args, options, (err, stdout, stderr) => {
+      if (err) {
+        err.stdout = stdout
+        err.stderr = stderr
+        reject(err)
+        return
+      }
+      resolve({ stdout, stderr })
+    })
+  })
 }
 
 const originalLoad = Module._load
