@@ -24,7 +24,6 @@
   },
   "devDependencies": {
     "@types/node": "^18.19.130",
-    "@types/node-wifi": "^2.0.2",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.57.1",
@@ -44,7 +43,6 @@
     "axios": "^1.13.2",
     "diskusage": "^1.2.0",
     "fast-xml-parser": "^4.5.3",
-    "node-wifi": "^2.0.16",
     "properties-reader": "^2.3.0",
     "samba-client": "^7.2.0",
     "tslib": "^2.8.1"

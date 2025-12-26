@@ -1,16 +1,17 @@
 import fs from 'fs'
-import path from 'path'
 import axios, { type AxiosInstance } from 'axios'
 import { Logger } from '../Logger'
 import { Settings } from '../Settings'
+import { type TransferFile, type TransferTarget } from './TransferTarget'
 
-export class Nextcloud {
-  public static async nextcloudTransferToHome (lockedFilesDirectory: string, lockedFiles: string[]) {
-    const settings = await Settings.getNextcloudSettings()
-    if (!settings.enabled) {
-      Logger.debug('Nextcloud transfer disabled, skipping')
-      return
-    }
+export class NextcloudTransferTarget implements TransferTarget {
+  public name = 'Nextcloud'
+  private client: AxiosInstance
+  private basePath: string
+  private lockedPath: string
+  private ready = false
+
+  public constructor (settings: Awaited<ReturnType<typeof Settings.getNextcloudSettings>>) {
     if (settings.url == null || settings.url.trim() === '') {
       throw new Error('Nextcloud URL not configured (nextcloud.url)')
     }
@@ -24,35 +25,33 @@ export class Nextcloud {
     const storagePath = settings.storagePath != null && settings.storagePath.trim() !== ''
       ? settings.storagePath
       : 'dashcam-transfer'
-    const normalizedBasePath = Nextcloud.toWebDavPath(storagePath)
-    const basePath = normalizedBasePath === '' ? 'dashcam-transfer' : normalizedBasePath
-    const lockedPath = `${basePath}/locked`
-    if (!fs.existsSync(lockedFilesDirectory)) {
-      Logger.debug('No locked files directory found, skipping Nextcloud transfer')
+    const normalizedBasePath = NextcloudTransferTarget.toWebDavPath(storagePath)
+    this.basePath = normalizedBasePath === '' ? 'dashcam-transfer' : normalizedBasePath
+    this.lockedPath = `${this.basePath}/locked`
+
+    Logger.info('Connecting to nextcloud', settings.url, this.basePath)
+    this.client = NextcloudTransferTarget.createClient(settings.url, settings.username, settings.password)
+  }
+
+  public async upload (file: TransferFile) {
+    await this.ensureReady()
+    Logger.debug('Uploading file to nextcloud', file.name)
+    await NextcloudTransferTarget.uploadFile(this.client, file.path, `${this.lockedPath}/${file.name}`)
+    await NextcloudTransferTarget.verifyRemoteFileSize(this.client, `${this.lockedPath}/${file.name}`, file.size)
+  }
+
+  private async ensureReady () {
+    if (this.ready) {
       return
     }
-    if (lockedFiles.length === 0) {
-      Logger.debug('No locked files found, skipping Nextcloud transfer')
-      return
-    }
-
-    Logger.info('Connecting to nextcloud', settings.url, basePath)
-    const client = Nextcloud.createClient(settings.url, settings.username, settings.password)
-    await Nextcloud.ensureDirectory(client, basePath)
-    await Nextcloud.ensureDirectory(client, lockedPath)
-
-    for (const file of lockedFiles) {
-      Logger.debug('Uploading file to nextcloud', file)
-      const localPath = path.join(lockedFilesDirectory, file)
-      await Nextcloud.uploadFile(client, localPath, `${lockedPath}/${file}`)
-    }
-
-    Logger.info('All files uploaded')
+    await NextcloudTransferTarget.ensureDirectory(this.client, this.basePath)
+    await NextcloudTransferTarget.ensureDirectory(this.client, this.lockedPath)
+    this.ready = true
   }
 
   private static createClient (baseUrl: string, username: string, password: string) {
     return axios.create({
-      baseURL: Nextcloud.normalizeBaseUrl(baseUrl),
+      baseURL: NextcloudTransferTarget.normalizeBaseUrl(baseUrl),
       auth: { username, password },
       maxBodyLength: Infinity,
       maxContentLength: Infinity
@@ -62,7 +61,7 @@ export class Nextcloud {
   private static async uploadFile (client: AxiosInstance, localPath: string, remotePath: string) {
     const stat = fs.statSync(localPath)
     const stream = fs.createReadStream(localPath)
-    await client.put(Nextcloud.toRequestPath(remotePath), stream, {
+    await client.put(NextcloudTransferTarget.toRequestPath(remotePath), stream, {
       headers: {
         'Content-Length': stat.size,
         'Content-Type': 'application/octet-stream'
@@ -70,12 +69,31 @@ export class Nextcloud {
     })
   }
 
+  private static async verifyRemoteFileSize (client: AxiosInstance, remotePath: string, expectedSize: number) {
+    const requestPath = NextcloudTransferTarget.toRequestPath(remotePath)
+    const response = await client.request({
+      method: 'HEAD',
+      url: requestPath
+    })
+    const lengthHeader = response.headers['content-length']
+    if (lengthHeader == null) {
+      throw new Error(`Nextcloud upload verification failed for ${remotePath}: missing content-length`)
+    }
+    const actualSize = Number(lengthHeader)
+    if (!Number.isFinite(actualSize)) {
+      throw new Error(`Nextcloud upload verification failed for ${remotePath}: invalid content-length`)
+    }
+    if (actualSize !== expectedSize) {
+      throw new Error(`Nextcloud upload size mismatch for ${remotePath}: expected ${expectedSize}, got ${actualSize}`)
+    }
+  }
+
   private static async ensureDirectory (client: AxiosInstance, remotePath: string) {
-    const segments = Nextcloud.toWebDavPath(remotePath).split('/').filter(Boolean)
+    const segments = NextcloudTransferTarget.toWebDavPath(remotePath).split('/').filter(Boolean)
     let current = ''
     for (const segment of segments) {
       current = current === '' ? segment : `${current}/${segment}`
-      await Nextcloud.mkdir(client, current)
+      await NextcloudTransferTarget.mkdir(client, current)
     }
   }
 
@@ -83,7 +101,7 @@ export class Nextcloud {
     try {
       await client.request({
         method: 'MKCOL',
-        url: Nextcloud.toRequestPath(remotePath)
+        url: NextcloudTransferTarget.toRequestPath(remotePath)
       })
     } catch (error) {
       const status = (error as { response?: { status?: number } })?.response?.status
@@ -103,7 +121,7 @@ export class Nextcloud {
   }
 
   private static toRequestPath (remotePath: string) {
-    const encoded = Nextcloud.toWebDavPath(remotePath)
+    const encoded = NextcloudTransferTarget.toWebDavPath(remotePath)
       .split('/')
       .filter(Boolean)
       .map(segment => encodeURIComponent(segment))

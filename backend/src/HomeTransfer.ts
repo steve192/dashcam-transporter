@@ -2,8 +2,9 @@ import fs from 'fs'
 import path from 'path'
 import { GlobalState } from './GlobalState'
 import { Logger } from './Logger'
-import { SMB } from './hometransfer/SMB'
-import { Nextcloud } from './hometransfer/Nextcloud'
+import { NextcloudTransferTarget } from './hometransfer/Nextcloud'
+import { SMBTransferTarget } from './hometransfer/SMB'
+import { type TransferFile, type TransferTarget } from './hometransfer/TransferTarget'
 import { RaspiLED } from './RaspiLed'
 import { Settings } from './Settings'
 
@@ -11,31 +12,16 @@ export class HomeTransfer {
   public static async transferToHome () {
     GlobalState.dashcamTransferDone = false
     RaspiLED.operation = 'HOMETRANSFER'
-    const smbSettings = await Settings.getSMBSettings()
-    const nextcloudSettings = await Settings.getNextcloudSettings()
-    const smbEnabled = smbSettings.enabled
-    const nextcloudEnabled = nextcloudSettings.enabled
+    const targets = await HomeTransfer.createTargets()
 
-    if (!smbEnabled && !nextcloudEnabled) {
+    if (targets.length === 0) {
       GlobalState.homeTransferDone = true
       Logger.debug('No home transfer targets enabled, skipping transfer')
       return
     }
 
     const lockedFilesDirectory = await Settings.getDownloadDirectory() + '/locked'
-    if (!fs.existsSync(lockedFilesDirectory)) {
-      GlobalState.homeTransferDone = true
-      Logger.debug('No locked files directory found, skipping transfer')
-      return
-    }
-    const lockedFiles = fs.readdirSync(lockedFilesDirectory).filter((file) => {
-      const fullPath = path.join(lockedFilesDirectory, file)
-      try {
-        return fs.statSync(fullPath).isFile()
-      } catch {
-        return false
-      }
-    })
+    const lockedFiles = HomeTransfer.listLocalFiles(lockedFilesDirectory)
     if (lockedFiles.length === 0) {
       GlobalState.homeTransferDone = true
       Logger.debug('No locked files found, skipping transfer')
@@ -43,35 +29,68 @@ export class HomeTransfer {
     }
 
     const errors: Error[] = []
-    if (smbEnabled) {
-      try {
-        await SMB.smbTransferToHome(lockedFilesDirectory, lockedFiles)
-      } catch (error) {
-        errors.push(error as Error)
-        Logger.error('SMB transfer failed', error)
-      }
-    }
-    if (nextcloudEnabled) {
-      try {
-        await Nextcloud.nextcloudTransferToHome(lockedFilesDirectory, lockedFiles)
-      } catch (error) {
-        errors.push(error as Error)
-        Logger.error('Nextcloud transfer failed', error)
-      }
-    }
-
-    if (errors.length > 0) {
-      throw errors[0]
-    }
-
     for (const file of lockedFiles) {
-      const localPath = path.join(lockedFilesDirectory, file)
-      if (fs.existsSync(localPath)) {
-        Logger.debug('Deleting locally uploaded file', file)
-        fs.unlinkSync(localPath)
+      for (const target of targets) {
+        try {
+          await target.upload(file)
+        } catch (error) {
+          errors.push(error as Error)
+          Logger.error(`${target.name} transfer failed`, error)
+        }
+      }
+
+      if (errors.length > 0) {
+        throw errors[0]
+      }
+
+      if (fs.existsSync(file.path)) {
+        Logger.debug('Deleting locally uploaded file', file.name)
+        fs.unlinkSync(file.path)
       }
     }
 
     GlobalState.homeTransferDone = true
+  }
+
+  public static async createTargets (): Promise<TransferTarget[]> {
+    const targets: TransferTarget[] = []
+    const smbSettings = await Settings.getSMBSettings()
+    if (smbSettings.enabled) {
+      targets.push(new SMBTransferTarget(smbSettings))
+    }
+    const nextcloudSettings = await Settings.getNextcloudSettings()
+    if (nextcloudSettings.enabled) {
+      targets.push(new NextcloudTransferTarget(nextcloudSettings))
+    }
+    return targets
+  }
+
+  public static listLocalFiles (lockedFilesDirectory: string): TransferFile[] {
+    if (!fs.existsSync(lockedFilesDirectory)) {
+      Logger.debug('No locked files directory found, skipping transfer')
+      return []
+    }
+
+    const entries = fs.readdirSync(lockedFilesDirectory)
+    return entries.reduce<TransferFile[]>((results, file) => {
+      if (file.endsWith('.part')) {
+        return results
+      }
+      const fullPath = path.join(lockedFilesDirectory, file)
+      try {
+        const stat = fs.statSync(fullPath)
+        if (!stat.isFile()) {
+          return results
+        }
+        results.push({
+          name: file,
+          path: fullPath,
+          size: stat.size
+        })
+        return results
+      } catch {
+        return results
+      }
+    }, [])
   }
 }

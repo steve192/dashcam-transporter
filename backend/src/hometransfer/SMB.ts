@@ -1,59 +1,54 @@
-import fs from 'fs'
 import SambaClient from 'samba-client'
 import { Logger } from '../Logger'
 import { Settings } from '../Settings'
+import { type TransferFile, type TransferTarget } from './TransferTarget'
 
-export class SMB {
-  public static async smbTransferToHome (lockedFilesDirectory: string, lockedFiles: string[]) {
-    const settings = await Settings.getSMBSettings()
-    if (!settings.enabled) {
-      Logger.debug('SMB transfer disabled, skipping')
-      return
-    }
-    if (!fs.existsSync(lockedFilesDirectory)) {
-      Logger.debug('No locked files directory found, skipping SMB transfer')
-      return
-    }
-    if (lockedFiles.length === 0) {
-      Logger.debug('No locked files found, skipping SMB transfer')
-      return
-    }
+export class SMBTransferTarget implements TransferTarget {
+  public name = 'SMB'
+  private client: SambaClient
+  private basePath: string
+  private lockedPath: string
+  private ready = false
+
+  public constructor (settings: Awaited<ReturnType<typeof Settings.getSMBSettings>>) {
     const storagePath = settings.storagePath != null && settings.storagePath.trim() !== ''
       ? settings.storagePath
       : 'dashcam-transfer'
     const shareName = settings.share != null && settings.share.trim() !== '' ? settings.share : 'home'
-    const normalizedBasePath = SMB.toSmbPath(storagePath)
-    const basePath = normalizedBasePath === '' ? 'dashcam-transfer' : normalizedBasePath
-    const lockedPath = basePath + '\\locked'
+    const normalizedBasePath = SMBTransferTarget.toSmbPath(storagePath)
+    this.basePath = normalizedBasePath === '' ? 'dashcam-transfer' : normalizedBasePath
+    this.lockedPath = this.basePath + '\\locked'
 
-    // const client = new SMB2({
-    //     share: '\\\\'+ settings.host +'\\home',
-    //     domain: '',
-    //     username: settings.username,
-    //     password: settings.password,
-    // });
-
-    // let filelist = await client.readdir("");
-
-    Logger.info('Connecting to smb', settings.host, shareName, basePath)
-    const client = new SambaClient({
+    Logger.info('Connecting to smb', settings.host, shareName, this.basePath)
+    this.client = new SambaClient({
       address: `\\\\${settings.host}\\${shareName}`,
       username: settings.username,
       password: settings.password
     })
-    if (!await client.fileExists(basePath)) {
-      await client.mkdir(basePath)
-    }
-    if (!await client.fileExists(lockedPath)) {
-      await client.mkdir(lockedPath)
-    }
+  }
 
-    for (const file of lockedFiles) {
-      Logger.debug('Uploading file to smb', file)
-      await client.sendFile(lockedFilesDirectory + '/' + file, lockedPath + '\\' + file)
+  public async upload (file: TransferFile) {
+    await this.ensureReady()
+    const remotePath = this.lockedPath + '\\' + file.name
+    Logger.debug('Uploading file to smb', file.name)
+    await this.client.sendFile(file.path, remotePath)
+    const exists = await this.client.fileExists(remotePath)
+    if (!exists) {
+      throw new Error(`SMB upload failed for ${file.name}`)
     }
+  }
 
-    Logger.info('All files uploaded')
+  private async ensureReady () {
+    if (this.ready) {
+      return
+    }
+    if (!await this.client.fileExists(this.basePath)) {
+      await this.client.mkdir(this.basePath)
+    }
+    if (!await this.client.fileExists(this.lockedPath)) {
+      await this.client.mkdir(this.lockedPath)
+    }
+    this.ready = true
   }
 
   private static toSmbPath (inputPath: string) {
