@@ -44,6 +44,8 @@ export class SMB {
     })
     if (!await client.fileExists(basePath)) {
       await client.mkdir(basePath)
+    }
+    if (!await client.fileExists(lockedPath)) {
       await client.mkdir(lockedPath)
     }
 
