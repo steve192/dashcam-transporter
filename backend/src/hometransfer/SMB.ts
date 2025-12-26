@@ -1,11 +1,22 @@
 import fs from 'fs'
 import SambaClient from 'samba-client'
-import { GlobalState } from '../GlobalState'
 import { Settings } from '../Settings'
 
 export class SMB {
-  public static async smbTransferToHome () {
+  public static async smbTransferToHome (lockedFilesDirectory: string, lockedFiles: string[]) {
     const settings = await Settings.getSMBSettings()
+    if (!settings.enabled) {
+      console.log('SMB transfer disabled, skipping')
+      return
+    }
+    if (!fs.existsSync(lockedFilesDirectory)) {
+      console.log('No locked files directory found, skipping SMB transfer')
+      return
+    }
+    if (lockedFiles.length === 0) {
+      console.log('No locked files found, skipping SMB transfer')
+      return
+    }
     const storagePath = settings.storagePath != null && settings.storagePath.trim() !== ''
       ? settings.storagePath
       : 'dashcam-transfer'
@@ -23,19 +34,6 @@ export class SMB {
 
     // let filelist = await client.readdir("");
 
-    const lockedFilesDirectory = await Settings.getDownloadDirectory() + '/locked'
-    if (!fs.existsSync(lockedFilesDirectory)) {
-      GlobalState.homeTransferDone = true
-      console.log('No locked files directory found, skipping transfer')
-      return
-    }
-    const lockedFiles = fs.readdirSync(lockedFilesDirectory)
-    if (lockedFiles.length === 0) {
-      GlobalState.homeTransferDone = true
-      console.log('No locked files found, skipping transfer')
-      return
-    }
-
     console.log('Connecting to smb', settings.host, shareName, basePath)
     const client = new SambaClient({
       address: `\\\\${settings.host}\\${shareName}`,
@@ -52,11 +50,8 @@ export class SMB {
     for (const file of lockedFiles) {
       console.log('Uploading file to smb', file)
       await client.sendFile(lockedFilesDirectory + '/' + file, lockedPath + '\\' + file)
-      console.log('File uploaded, deleting locally')
-      fs.unlinkSync(lockedFilesDirectory + '/' + file)
     }
 
-    GlobalState.homeTransferDone = true
     console.log('All files uploaded')
   }
 

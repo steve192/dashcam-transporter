@@ -13,11 +13,11 @@ const requiredSettings = [
 ]
 
 const resolveSettingsPath = () => {
-  if (fs.existsSync(defaultSettingsPath)) {
-    return defaultSettingsPath
-  }
   if (fs.existsSync(localSettingsPath)) {
     return localSettingsPath
+  }
+  if (fs.existsSync(defaultSettingsPath)) {
+    return defaultSettingsPath
   }
   return defaultSettingsPath
 }
@@ -94,6 +94,17 @@ export class Settings {
       username: properties.get('smb.username') as string,
       password: properties.get('smb.password') as string,
       storagePath: properties.get('smb.storagepath') as string
+    }
+  }
+
+  public static async getNextcloudSettings () {
+    const enabledValue = properties.get('nextcloud.enabled')
+    return {
+      enabled: String(enabledValue).toLowerCase() === 'true',
+      url: properties.get('nextcloud.url') as string,
+      username: properties.get('nextcloud.username') as string,
+      password: properties.get('nextcloud.password') as string,
+      storagePath: properties.get('nextcloud.storagepath') as string
     }
   }
 }
