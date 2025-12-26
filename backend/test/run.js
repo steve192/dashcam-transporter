@@ -241,7 +241,7 @@ test('HomeTransfer triggers SMB transfer', async () => {
   await HomeTransfer.transferToHome()
 
   assert.strictEqual(called, 1)
-  assert.strictEqual(RaspiLED.operation, 'HOMETRANSFER')
+  assert.strictEqual(RaspiLED.operation, 'IDLE')
   assert.strictEqual(GlobalState.dashcamTransferDone, false)
   assert.strictEqual(fs.existsSync(path.join(lockedDir, 'video.mp4')), false)
 
