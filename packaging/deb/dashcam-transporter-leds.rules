@@ -1,0 +1,4 @@
+SUBSYSTEM=="leds", KERNEL=="led0", MODE="0660", GROUP="dashcam-transporter"
+SUBSYSTEM=="leds", KERNEL=="led1", MODE="0660", GROUP="dashcam-transporter"
+SUBSYSTEM=="leds", KERNEL=="ACT", MODE="0660", GROUP="dashcam-transporter"
+SUBSYSTEM=="leds", KERNEL=="PWR", MODE="0660", GROUP="dashcam-transporter"

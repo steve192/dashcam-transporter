@@ -19,6 +19,11 @@ fi
 
 install -d -o "$APP_USER" -g "$APP_GROUP" "$LOG_DIR" "$STATE_DIR" "$DOWNLOAD_DIR"
 
+if command -v udevadm >/dev/null 2>&1; then
+  udevadm control --reload-rules >/dev/null 2>&1 || true
+  udevadm trigger --subsystem-match=leds >/dev/null 2>&1 || true
+fi
+
 if command -v npm >/dev/null 2>&1 && [ -d "$APP_DIR/node_modules" ]; then
   echo "Rebuilding native modules for installed Node.js"
   (cd "$APP_DIR" && npm rebuild --build-from-source --unsafe-perm)
