@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2019",
     "module": "commonjs",
     "lib": ["es6", "DOM"],
     "allowJs": true,
@@ -13,5 +13,7 @@
     "importHelpers": true,
     "esModuleInterop": true
     // "skipLibCheck": true
-  }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules", "test"]
 }

@@ -62,11 +62,11 @@ export class RaspiLED {
       RaspiLED.ledStatus = true
     }
 
-    if (this.isRaspberryPi()) {
+    if (RaspiLED.isRaspberryPi()) {
       fs.writeFileSync('/sys/class/leds/led0/brightness', RaspiLED.ledStatus ? '1' : '0')
       fs.writeFileSync('/sys/class/leds/led1/brightness', RaspiLED.ledStatus ? '1' : '0')
     }
-    setTimeout(RaspiLED.updateStatus, 500)
+    setTimeout(() => RaspiLED.updateStatus(), 500)
   }
 
   public static get operation () {

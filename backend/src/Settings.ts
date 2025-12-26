@@ -1,9 +1,62 @@
+import fs from 'fs'
+import path from 'path'
 import propertiesReader from 'properties-reader'
 
-// eslint-disable-next-line n/no-path-concat
-const properties = propertiesReader(__dirname + '/settings.ini')
+const defaultSettingsPath = process.env.DASHCAM_TRANSPORTER_SETTINGS ?? '/etc/dashcam-transporter/settings.ini'
+const localSettingsPath = path.join(__dirname, 'settings.ini')
+const requiredSettings = [
+  'home.ssid',
+  'home.password',
+  'dashcam.ssid',
+  'dashcam.password',
+  'dashcam.model'
+]
+
+const resolveSettingsPath = () => {
+  if (fs.existsSync(defaultSettingsPath)) {
+    return defaultSettingsPath
+  }
+  if (fs.existsSync(localSettingsPath)) {
+    return localSettingsPath
+  }
+  return defaultSettingsPath
+}
+
+const loadProperties = (settingsPath: string) => {
+  if (!fs.existsSync(settingsPath)) {
+    return propertiesReader('')
+  }
+  try {
+    return propertiesReader(settingsPath)
+  } catch {
+    return propertiesReader('')
+  }
+}
+
+let activeSettingsPath = resolveSettingsPath()
+let properties = loadProperties(activeSettingsPath)
 
 export class Settings {
+  public static reload () {
+    activeSettingsPath = resolveSettingsPath()
+    properties = loadProperties(activeSettingsPath)
+  }
+
+  public static getSettingsPath () {
+    return activeSettingsPath
+  }
+
+  public static hasSettingsFile () {
+    return fs.existsSync(activeSettingsPath)
+  }
+
+  public static getMissingRequiredSettings () {
+    return requiredSettings.filter((key) => {
+      const value = properties.getRaw(key)
+      return value == null || value.trim() === ''
+    })
+  }
+
   public static async getDashcamWifiSSID () {
     return properties.get('dashcam.ssid') as string
   }
@@ -31,9 +84,13 @@ export class Settings {
   }
 
   public static async getSMBSettings () {
+    const enabledValue = properties.get('smb.enabled')
+    const shareValue = properties.get('smb.share')
+    const share = shareValue != null && String(shareValue).trim() !== '' ? String(shareValue) : 'home'
     return {
-      enabled: properties.get('smb.enabled') === 'true',
+      enabled: String(enabledValue).toLowerCase() === 'true',
       host: properties.get('smb.host') as string,
+      share,
       username: properties.get('smb.username') as string,
       password: properties.get('smb.password') as string,
       storagePath: properties.get('smb.storagepath') as string

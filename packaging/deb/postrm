@@ -1,0 +1,60 @@
+#!/bin/sh
+set -e
+
+APP_USER="dashcam-transporter"
+APP_GROUP="dashcam-transporter"
+CONFIG_DIR="/etc/dashcam-transporter"
+STATE_DIR="/var/lib/dashcam-transporter"
+LOG_DIR="/var/log/dashcam-transporter"
+
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+  if command -v systemctl >/dev/null 2>&1; then
+    if [ -f "$STATE_DIR/dhcpcd-enabled-before" ]; then
+      state="$(cat "$STATE_DIR/dhcpcd-enabled-before")"
+      case "$state" in
+        enabled) systemctl enable dhcpcd >/dev/null 2>&1 || true ;;
+        disabled) systemctl disable dhcpcd >/dev/null 2>&1 || true ;;
+        masked) systemctl mask dhcpcd >/dev/null 2>&1 || true ;;
+      esac
+    fi
+    if [ -f "$STATE_DIR/dhcpcd-active-before" ]; then
+      state="$(cat "$STATE_DIR/dhcpcd-active-before")"
+      case "$state" in
+        active) systemctl start dhcpcd >/dev/null 2>&1 || true ;;
+        inactive|failed) systemctl stop dhcpcd >/dev/null 2>&1 || true ;;
+      esac
+    fi
+
+    if [ -f "$STATE_DIR/networkmanager-enabled-before" ]; then
+      state="$(cat "$STATE_DIR/networkmanager-enabled-before")"
+      case "$state" in
+        enabled) systemctl enable NetworkManager >/dev/null 2>&1 || true ;;
+        disabled) systemctl disable NetworkManager >/dev/null 2>&1 || true ;;
+        masked) systemctl mask NetworkManager >/dev/null 2>&1 || true ;;
+      esac
+    fi
+    if [ -f "$STATE_DIR/networkmanager-active-before" ]; then
+      state="$(cat "$STATE_DIR/networkmanager-active-before")"
+      case "$state" in
+        active) systemctl start NetworkManager >/dev/null 2>&1 || true ;;
+        inactive|failed) systemctl stop NetworkManager >/dev/null 2>&1 || true ;;
+      esac
+    fi
+  fi
+fi
+
+if [ "$1" = "purge" ]; then
+
+  if id -u "$APP_USER" >/dev/null 2>&1; then
+    userdel "$APP_USER" >/dev/null 2>&1 || true
+  fi
+
+  if getent group "$APP_GROUP" >/dev/null 2>&1; then
+    groupdel "$APP_GROUP" >/dev/null 2>&1 || true
+  fi
+
+  rm -rf "$STATE_DIR" "$LOG_DIR"
+  rm -f "$CONFIG_DIR/skip-networkmanager-setup"
+fi
+
+exit 0

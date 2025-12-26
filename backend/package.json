@@ -4,14 +4,18 @@
   "description": "",
   "main": "dist/app.js",
   "scripts": {
-    "build": "tsc && cp package.json dist && cp settings.template.ini dist/settings.ini && cp setup.sh dist",
+    "build": "tsc && cp package.json dist && cp settings.template.ini dist/settings.ini",
     "start": "tsc && node dist/app.js",
     "package": "npm run build && pkg . --output dist/dashcam-transporter-backend -t node16-linux",
     "lint": "eslint . --ext .ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run build && node test/run.js"
   },
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=18 <19",
+    "npm": ">=10"
+  },
   "bin": {
     "dashcam-transporter-backend": "./dist/app.js"
   },

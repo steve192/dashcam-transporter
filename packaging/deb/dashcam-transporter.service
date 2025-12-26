@@ -1,0 +1,20 @@
+[Unit]
+Description=Dashcam Transporter
+Wants=network-online.target
+After=network-online.target NetworkManager.service
+
+[Service]
+Type=simple
+User=dashcam-transporter
+Group=dashcam-transporter
+WorkingDirectory=/opt/dashcam-transporter
+Environment=NODE_ENV=production
+Environment=DASHCAM_TRANSPORTER_SETTINGS=/etc/dashcam-transporter/settings.ini
+ExecStart=/usr/bin/node /opt/dashcam-transporter/app.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/dashcam-transporter/app.log
+StandardError=append:/var/log/dashcam-transporter/app.log
+
+[Install]
+WantedBy=multi-user.target
