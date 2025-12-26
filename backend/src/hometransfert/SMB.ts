@@ -9,6 +9,7 @@ export class SMB {
     const storagePath = settings.storagePath != null && settings.storagePath.trim() !== ''
       ? settings.storagePath
       : 'dashcam-transfer'
+    const shareName = settings.share != null && settings.share.trim() !== '' ? settings.share : 'home'
     const normalizedBasePath = SMB.toSmbPath(storagePath)
     const basePath = normalizedBasePath === '' ? 'dashcam-transfer' : normalizedBasePath
     const lockedPath = basePath + '\\locked'
@@ -35,9 +36,9 @@ export class SMB {
       return
     }
 
-    console.log('Connecting to smb', settings.host, basePath)
+    console.log('Connecting to smb', settings.host, shareName, basePath)
     const client = new SambaClient({
-      address: `\\\\${settings.host}\\home`,
+      address: `\\\\${settings.host}\\${shareName}`,
       username: settings.username,
       password: settings.password
     })

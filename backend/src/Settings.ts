@@ -85,9 +85,12 @@ export class Settings {
 
   public static async getSMBSettings () {
     const enabledValue = properties.get('smb.enabled')
+    const shareValue = properties.get('smb.share')
+    const share = shareValue != null && String(shareValue).trim() !== '' ? String(shareValue) : 'home'
     return {
       enabled: String(enabledValue).toLowerCase() === 'true',
       host: properties.get('smb.host') as string,
+      share,
       username: properties.get('smb.username') as string,
       password: properties.get('smb.password') as string,
       storagePath: properties.get('smb.storagepath') as string

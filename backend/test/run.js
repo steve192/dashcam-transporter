@@ -19,6 +19,7 @@ fs.writeFileSync(
     '[smb]',
     'enabled=true',
     'host=server.local',
+    'share=dashcam',
     'username=user',
     'password=pass',
     'storagepath=/share/dashcam'
@@ -183,6 +184,7 @@ test('Settings read expected values', async () => {
   assert.strictEqual(await Settings.getDownloadDirectory(), '/opt/videodownload')
   assert.strictEqual(smb.enabled, true)
   assert.strictEqual(smb.host, 'server.local')
+  assert.strictEqual(smb.share, 'dashcam')
 })
 
 test('enoughSpaceAvailable respects buffer', async () => {
@@ -294,6 +296,7 @@ test('SMB transfers and removes local files', async () => {
   Settings.getSMBSettings = async () => ({
     enabled: true,
     host: 'server.local',
+    share: 'dashcam',
     username: 'user',
     password: 'pass',
     storagePath: '/share/dashcam'
@@ -321,6 +324,7 @@ test('SMB skips transfer when locked directory is missing', async () => {
   Settings.getSMBSettings = async () => ({
     enabled: true,
     host: 'server.local',
+    share: 'dashcam',
     username: 'user',
     password: 'pass',
     storagePath: '/share/dashcam'
