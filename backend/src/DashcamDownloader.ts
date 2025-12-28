@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { pipeline } from 'stream'
 import { type DashcamFile, type DashcamSource } from './dashcams/DashcamSource'
+import { GarminVirb } from './dashcams/GarminVirb'
 import { VIOFO } from './dashcams/VIOFO'
 import { GlobalState } from './GlobalState'
 import { Logger } from './Logger'
@@ -36,6 +37,8 @@ export class DashcamDownloader {
   public static async createSource (): Promise<DashcamSource> {
     const model = await Settings.getDashcamModel()
     switch (model) {
+      case 'GARMIN_VIRB':
+        return new GarminVirb()
       case 'VIOFOA199MINI':
         return new VIOFO()
       case 'VIOFO':

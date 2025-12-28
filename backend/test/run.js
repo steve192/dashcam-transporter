@@ -130,6 +130,7 @@ const mockNmcli = {
 const mockAxios = {
   deletes: [],
   downloads: [],
+  posts: [],
   failDownloads: false,
   get: async function (url, opts) {
     if (url.includes('cmd=3015')) {
@@ -173,6 +174,33 @@ const mockAxios = {
     }
 
     throw new Error(`Unexpected axios.get call: ${url}`)
+  },
+  post: async function (url, body) {
+    this.posts.push({ url, body })
+    if (url.includes('/virb')) {
+      return {
+        data: {
+          result: 1,
+          media: [
+            {
+              Name: 'LOCKED.MP4',
+              Url: '/DCIM/LOCKED.MP4',
+              FileSize: 12,
+              Fav: '1',
+              Type: 'video'
+            },
+            {
+              Name: 'UNLOCKED.MP4',
+              Url: '/DCIM/UNLOCKED.MP4',
+              FileSize: 10,
+              Fav: '0',
+              Type: 'video'
+            }
+          ]
+        }
+      }
+    }
+    throw new Error(`Unexpected axios.post call: ${url}`)
   },
   delete: async function (url) {
     this.deletes.push(url)
@@ -269,6 +297,7 @@ const { Settings } = require('../dist/Settings')
 const { Wifi } = require('../dist/WIFI')
 const { DashcamDownloader } = require('../dist/DashcamDownloader')
 const { HomeTransfer } = require('../dist/HomeTransfer')
+const { GarminVirb } = require('../dist/dashcams/GarminVirb')
 const { VIOFO } = require('../dist/dashcams/VIOFO')
 const { GlobalState } = require('../dist/GlobalState')
 const { RaspiLED } = require('../dist/RaspiLed')
@@ -282,6 +311,7 @@ const resetMocks = () => {
   mockNmcli.reset()
   mockAxios.deletes = []
   mockAxios.downloads = []
+  mockAxios.posts = []
   mockAxios.failDownloads = false
   SambaClientMock.lastInstance = null
   mockDiskusage.free = 0
@@ -394,6 +424,15 @@ test('VIOFO lists locked files', async () => {
   assert.strictEqual(files[0].name, 'LOCK1.MP4')
   assert.strictEqual(files[0].size, 4)
   assert.strictEqual(files[0].remotePath.includes('/LOCKED/LOCK1.MP4'), true)
+})
+
+test('GarminVirb lists locked files', async () => {
+  const virb = new GarminVirb()
+  const files = await virb.listLockedFiles()
+  assert.strictEqual(files.length, 1)
+  assert.strictEqual(files[0].name, 'LOCKED.MP4')
+  assert.strictEqual(files[0].size, 12)
+  assert.strictEqual(files[0].remotePath.includes('/DCIM/LOCKED.MP4'), true)
 })
 
 test('DashcamDownloader propagates download errors', async () => {
