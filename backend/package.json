@@ -34,7 +34,7 @@
     "pkg": "^5.8.1",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
-    "webpack": "^5.104.1",
+    "webpack": "^5.105.0",
     "webpack-cli": "^5.1.4",
     "@types/properties-reader": "^2.1.3"
   },
