@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "engines": {
-    "node": ">=18 <19",
+    "node": ">=18 <25",
     "npm": ">=10.9.4"
   },
   "bin": {
@@ -23,7 +23,7 @@
     "scripts": "dist/**/*.js"
   },
   "devDependencies": {
-    "@types/node": "^18.19.130",
+    "@types/node": "^24.10.13",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.57.1",
