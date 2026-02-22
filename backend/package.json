@@ -14,7 +14,7 @@
   "license": "ISC",
   "engines": {
     "node": ">=18 <19",
-    "npm": ">=10.9.4"
+    "npm": ">=11.10.0"
   },
   "bin": {
     "dashcam-transporter-backend": "./dist/app.js"
