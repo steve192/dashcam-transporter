@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@marsaud/smb2": "^0.18.0",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "diskusage": "^1.2.0",
     "fast-xml-parser": "^5.4.2",
     "properties-reader": "^2.3.0",
