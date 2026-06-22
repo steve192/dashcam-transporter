@@ -33,7 +33,7 @@
     "eslint-plugin-promise": "^6.6.0",
     "pkg": "^5.8.1",
     "ts-loader": "^9.5.7",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "webpack": "^5.106.2",
     "webpack-cli": "^5.1.4",
     "@types/properties-reader": "^2.1.3"
