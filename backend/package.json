@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "engines": {
-    "node": ">=18 <19",
+    "node": ">=18 <25",
     "npm": ">=10.9.9"
   },
   "bin": {
