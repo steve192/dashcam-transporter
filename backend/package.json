@@ -14,7 +14,7 @@
   "license": "ISC",
   "engines": {
     "node": ">=18 <19",
-    "npm": ">=10.9.9"
+    "npm": ">=10.9.10"
   },
   "bin": {
     "dashcam-transporter-backend": "./dist/app.js"
@@ -40,11 +40,11 @@
   },
   "dependencies": {
     "@marsaud/smb2": "^0.18.0",
-    "axios": "^1.21.0",
+    "axios": "^1.21.1",
     "diskusage": "^1.2.0",
-    "fast-xml-parser": "^5.11.2",
+    "fast-xml-parser": "^5.12.0",
     "properties-reader": "^2.3.0",
     "samba-client": "^7.2.0",
-    "tslib": "^2.8.1"
+    "tslib": "^2.9.1"
   }
 }
