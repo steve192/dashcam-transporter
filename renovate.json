@@ -35,6 +35,20 @@
       "allowedVersions": "<19"
     },
     {
+      "description": "TypeScript 6 needs typescript-eslint >= 8.56, which requires Node.js 20 (see eslint-config-love below). TypeScript 7 is also a native compiler binary that is not published for linux-ia32, and the i386 .deb is compiled inside an i386 container",
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "allowedVersions": "<6"
+    },
+    {
+      "description": "eslint-config-love declares no engines, so the constraints above cannot filter it: from 152 on it needs typescript-eslint >= 8.56 (eslint-visitor-keys 5), from 154 eslint-plugin-n 18 and from 156 ESLint 10, all of which require Node.js 20. The lock file keeps typescript-eslint at 8.55.0 for the same reason",
+      "matchPackageNames": [
+        "eslint-config-love"
+      ],
+      "allowedVersions": "<152"
+    },
+    {
       "description": "package.json engines declare the supported Node.js range; keep them as ranges instead of pinning them to a single release",
       "matchDepTypes": [
         "engines"
