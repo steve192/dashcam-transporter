@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import propertiesReader from 'properties-reader'
+import { propertiesReader } from 'properties-reader'
 
 const defaultSettingsPath = '/etc/dashcam-transporter/settings.ini'
 const localSettingsPath = path.join(__dirname, 'settings.ini')
@@ -28,12 +28,12 @@ const resolveSettingsPath = () => {
 
 const loadProperties = (settingsPath: string) => {
   if (!fs.existsSync(settingsPath)) {
-    return propertiesReader('')
+    return propertiesReader()
   }
   try {
-    return propertiesReader(settingsPath)
+    return propertiesReader({ sourceFile: settingsPath })
   } catch {
-    return propertiesReader('')
+    return propertiesReader()
   }
 }
 
