@@ -1,0 +1,2 @@
+# .deb packages from packaging/build-deb.sh and packaging/build-deb-in-docker.sh
+/dist/

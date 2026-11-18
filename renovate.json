@@ -6,14 +6,41 @@
   ],
   "timezone": "UTC",
   "dependencyDashboard": true,
-  "rangeStrategy": "bump",
+  "rangeStrategy": "pin",
   "minimumReleaseAge": "7 days",
   "platformAutomerge": true,
   "automergeType": "branch",
   "labels": [
     "dependencies"
   ],
+  "constraints": {
+    "node": "18.20.4",
+    "npm": "9.2.0"
+  },
+  "constraintsFiltering": "strict",
   "packageRules": [
+    {
+      "description": "Node.js and npm come from the target OS, not from Renovate: the .deb runs on the nodejs and npm that apt installs, and the oldest supported OS is Raspberry Pi OS Bookworm / Debian 12 with Node.js 18.20.4 and npm 9.2.0. The constraints above make Renovate generate lock files with exactly that toolchain and skip every release whose engines exclude it. .nvmrc, backend/package.json engines and these constraints are changed together, by hand, when Bookworm support is dropped",
+      "matchDepNames": [
+        "node",
+        "npm"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Node.js type definitions have to describe the oldest supported Node.js (see above), not the newest",
+      "matchPackageNames": [
+        "@types/node"
+      ],
+      "allowedVersions": "<19"
+    },
+    {
+      "description": "package.json engines declare the supported Node.js range; keep them as ranges instead of pinning them to a single release",
+      "matchDepTypes": [
+        "engines"
+      ],
+      "rangeStrategy": "replace"
+    },
     {
       "description": "Safely automerge patch and digest updates",
       "matchUpdateTypes": [
@@ -23,7 +50,14 @@
       "automerge": true
     },
     {
-      "description": "Node dependencies (npm)",
+      "description": "Never automerge major updates",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "npm minor/patch updates - one PR per package so a single failure doesn't block the rest",
       "matchManagers": [
         "npm"
       ],
@@ -31,7 +65,6 @@
         "minor",
         "patch"
       ],
-      "groupName": "node-dependencies",
       "automerge": true
     },
     {

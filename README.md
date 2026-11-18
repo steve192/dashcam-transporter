@@ -66,6 +66,11 @@ This runs the app from source on the Pi for development.
 
 Tip: Use a separate settings file by exporting `DASHCAM_TRANSPORTER_SETTINGS=/etc/dashcam-transporter/settings.test.ini` before running `node dist/app.js`.
 
+# Releases and dependency updates
+- Releases are made by the **Release** workflow with semantic-release, from the conventional commit messages on `main`. It tags the release, builds the `.deb` for armhf, arm64, amd64 and i386, installs each one on Debian Bookworm and Trixie, and only then publishes the GitHub release that `install.sh` and `dashcam-transporter update` download.
+- Renovate keeps the dependencies up to date. When every commit since the last release comes from Renovate, CI releases automatically once it passes. Any other commit needs a manual run: Actions → Release → Run workflow.
+- The package runs on the `nodejs` that the OS installs from apt. The oldest supported OS is Raspberry Pi OS Bookworm (Debian 12), which ships Node.js 18.20.4 and npm 9.2.0, so every dependency has to run on that; Renovate does not offer updates that don't, and CI installs with `engine-strict`. To drop Bookworm, change `.nvmrc`, `engines` in `backend/package.json` and `constraints` in `renovate.json` together.
+
 # Meaning of leds
 The script controls the raspberrys leds
 - Fast blinking LEDs - Transferring from dashcam to the Pi

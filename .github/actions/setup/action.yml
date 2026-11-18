@@ -1,0 +1,31 @@
+name: Setup
+description: >-
+  Set up Node.js from .nvmrc with an npm cache and (by default) install the backend
+  dependencies. The repository must already be checked out.
+
+inputs:
+  install:
+    description: Whether to run `npm ci` in backend/ after setting up Node.js.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v7.1.0
+      with:
+        node-version-file: .nvmrc
+        cache: npm
+        cache-dependency-path: backend/package-lock.json
+
+    # engine-strict turns a dependency whose `engines` excludes the Node.js in .nvmrc
+    # (the oldest one the target OS ships) into an install error instead of a warning,
+    # which also covers transitive dependencies that Renovate's filtering cannot see.
+    - name: Install dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      working-directory: backend
+      env:
+        npm_config_engine_strict: "true"
+      run: npm ci

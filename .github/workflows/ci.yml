@@ -3,35 +3,94 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - "**"
   pull_request:
-    branches:
-      - main
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
-env:
-  NODE_VERSION: 18.20.4
-  NPM_VERSION: 10.5.0
+# Cancel superseded runs per ref, except on main where a cancelled run could
+# abort an in-flight auto-release.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Only what every job needs. auto-release raises its own ceiling, so a compromised
+# step in one job cannot use another job's privileges.
+permissions:
+  contents: read
 
 jobs:
-  build:
+  build-test:
+    name: Build & Test
+    uses: ./.github/workflows/build-test.yml
+
+  renovate-release-check:
+    name: Evaluate Renovate-only commits
+    needs: build-test
     runs-on: ubuntu-latest
-
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      should_release: ${{ steps.evaluate.outputs.should_release }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Set up Node
-        uses: actions/setup-node@v7
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
+          fetch-depth: 0
 
-      - name: Set up npm
-        run: npm install -g "npm@${NPM_VERSION}"
-
-      - name: Install and build
+      - name: Determine eligibility
+        id: evaluate
         run: |
-          cd backend
-          npm ci
-          npm test
+          last_tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo '')
+          if [ -z "$last_tag" ]; then
+            echo "No previous release tag found. Skipping automatic release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git merge-base --is-ancestor "$last_tag" HEAD; then
+            :
+          else
+            echo "Last tag $last_tag not an ancestor of HEAD; skipping automatic release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          commit_range="${last_tag}..HEAD"
+          commit_list=$(git rev-list "$commit_range")
+          if [ -z "$commit_list" ]; then
+            echo "No commits since $last_tag. Skipping automatic release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          commit_info=$(git log "$commit_range" --pretty='%an|%ae')
+          should_release=true
+          while IFS='|' read -r author email; do
+            [ -z "$author" ] && continue
+            lower=$(printf '%s %s' "$author" "$email" | tr '[:upper:]' '[:lower:]')
+            if [[ "$lower" == *renovate* ]]; then
+              continue
+            fi
+            echo "Found non-dependency-bot commit from $author <$email>. Release will be skipped."
+            should_release=false
+            break
+          done <<< "$commit_info"
+
+          echo "should_release=$should_release" >> "$GITHUB_OUTPUT"
+
+  auto-release:
+    name: Auto release
+    needs: renovate-release-check
+    if: needs.renovate-release-check.outputs.should_release == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      # The calling workflow IS the CI run that release.yml would otherwise
+      # have to verify, so wait-on-yourself is impossible. See the
+      # verify-default-branch-ci job in release.yml for details.
+      skip_default_branch_ci_check: true
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+    secrets: inherit
