@@ -13,9 +13,17 @@ ARCH="${1:?usage: $0 <amd64|i386|arm64|armhf> [debian-release]}"
 DEBIAN_RELEASE="${2:-bookworm}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Docker 29.4.2 (GitHub's ubuntu-26.04 runners) makes the socketcall syscall fail in its
+# default seccomp profile, and 32-bit x86 glibc opens every socket through socketcall,
+# so DNS and all other networking fail in i386 containers. Docker 29.4.3 allows it
+# again. These containers only build and test this package, so i386 runs unfiltered.
+docker_opts=()
 case "$ARCH" in
   amd64) platform=linux/amd64 ;;
-  i386) platform=linux/386 ;;
+  i386)
+    platform=linux/386
+    docker_opts=(--security-opt seccomp=unconfined)
+    ;;
   arm64) platform=linux/arm64 ;;
   armhf) platform=linux/arm/v7 ;;
   *)
@@ -34,7 +42,7 @@ deb="$(basename "${debs[0]}")"
 
 # --pull always: a local image tag holds a single platform, so without it Docker
 # reuses whichever architecture was pulled last.
-docker run --rm --pull always --platform "$platform" \
+docker run --rm --pull always --platform "$platform" "${docker_opts[@]}" \
   -e EXPECTED_ARCH="$ARCH" \
   -e DEB="$deb" \
   -v "$ROOT_DIR/dist":/artifacts:ro \
