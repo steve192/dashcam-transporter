@@ -1,10 +1,12 @@
 name: Build & Test
 
 # Reusable validation suite: the backend tests on the Node.js in .nvmrc, then the amd64
-# .deb built and installed the way a user installs it, on every supported Debian
-# release. Called by ci.yml for pushes and pull requests, so the validation logic lives
-# in one place. The release workflow builds and installs every architecture with the
-# same packaging/*-in-docker.sh scripts.
+# and i386 .debs built and installed the way a user installs them, on every supported
+# Debian release. i386 runs natively and is the architecture most likely to break (32-bit
+# userland, missing native binaries); the emulated arm builds take too long for every
+# push. Called by ci.yml for pushes and pull requests, so the validation logic lives in
+# one place. The release workflow builds and installs every architecture with the same
+# packaging/*-in-docker.sh scripts.
 
 on:
   workflow_call:
@@ -36,8 +38,12 @@ jobs:
         run: npm test
 
   package:
-    name: Package (amd64)
+    name: Package (${{ matrix.arch }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, i386]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
@@ -45,25 +51,26 @@ jobs:
           ref: ${{ inputs.ref }}
 
       - name: Build .deb
-        run: packaging/build-deb-in-docker.sh amd64
+        run: packaging/build-deb-in-docker.sh ${{ matrix.arch }}
 
       # The name differs from the release workflow's artifacts on purpose: CI calls the
       # release workflow in the same run, and artifact names are unique per run.
       - name: Upload .deb
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: ci-deb-amd64
+          name: ci-deb-${{ matrix.arch }}
           path: dist/*.deb
           if-no-files-found: error
           retention-days: 7
 
   test-install:
-    name: Install on ${{ matrix.debian }} (amd64)
+    name: Install on ${{ matrix.debian }} (${{ matrix.arch }})
     needs: package
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        arch: [amd64, i386]
         debian: [bookworm, trixie]
     steps:
       - name: Checkout repository
@@ -74,8 +81,8 @@ jobs:
       - name: Download .deb
         uses: actions/download-artifact@v8.0.2
         with:
-          name: ci-deb-amd64
+          name: ci-deb-${{ matrix.arch }}
           path: dist
 
       - name: Install and smoke test
-        run: packaging/test-install-in-docker.sh amd64 ${{ matrix.debian }}
+        run: packaging/test-install-in-docker.sh ${{ matrix.arch }} ${{ matrix.debian }}
