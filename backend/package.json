@@ -36,7 +36,7 @@
     "@marsaud/smb2": "0.18.0",
     "axios": "1.21.1",
     "diskusage": "1.2.0",
-    "fast-xml-parser": "5.12.0",
+    "fast-xml-parser": "5.12.1",
     "properties-reader": "3.0.1",
     "samba-client": "7.2.0",
     "tslib": "2.9.1"
